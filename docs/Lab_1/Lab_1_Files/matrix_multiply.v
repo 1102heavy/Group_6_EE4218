@@ -70,7 +70,7 @@ module matrix_multiply
 	localparam Write_Outputs  = 6'b000010;
 	localparam DONE = 6'b000001;
 	
-    reg [5:0] state = 0;
+    reg [5:0] state = 6'b100000;
     
     
     always @(posedge clk) begin
