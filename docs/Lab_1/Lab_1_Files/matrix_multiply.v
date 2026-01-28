@@ -63,13 +63,14 @@ module matrix_multiply
     reg [17:0 ]accumulator;
     
 	// Define the states of state machine (one hot encoding)
-	localparam Idle  = 5'b10000;
-	localparam Read_Inputs = 5'b01000;
-	localparam Send_Address = 5'b00100;
-	localparam Compute = 5'b00010;
-	localparam Write_Outputs  = 5'b00001;
+	localparam Idle  = 6'b100000;
+	localparam Read_Inputs = 6'b010000;
+	localparam Send_Address = 6'b001000;
+	localparam Compute = 6'b000100;
+	localparam Write_Outputs  = 6'b000010;
+	localparam DONE = 6'b000001;
 	
-    reg [4:0] state = 0;
+    reg [5:0] state = 0;
     
     
     always @(posedge clk) begin
@@ -154,9 +155,13 @@ module matrix_multiply
                     state <= Read_Inputs;
                 end 
                 else begin
-                    state <= Idle;
+                    state <= DONE;
                     Done <= 1;
                 end                
+            end
+            
+            DONE: begin
+                state <= Idle;
             end
             
         endcase
