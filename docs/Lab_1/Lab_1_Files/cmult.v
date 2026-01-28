@@ -4,10 +4,10 @@
 
 module cmult # (parameter AWIDTH = 16, BWIDTH = 18)
 (
-input clk,
-input signed [AWIDTH-1:0] ar, ai,
-input signed [BWIDTH-1:0] br, bi,
-output signed [AWIDTH+BWIDTH:0] pr, pi
+    input clk,
+    input signed [AWIDTH-1:0] ar, ai,
+    input signed [BWIDTH-1:0] br, bi,
+    output signed [AWIDTH+BWIDTH:0] pr, pi
 );
 
 reg signed [AWIDTH-1:0] ai_d, ai_dd, ai_ddd, ai_dddd ;
@@ -20,49 +20,49 @@ reg signed [AWIDTH+BWIDTH:0] common, commonr1, commonr2 ;
 
 always @(posedge clk)
 begin
-ar_d <= ar;
-ar_dd <= ar_d;
-ai_d <= ai;
-ai_dd <= ai_d;
-br_d <= br;
-br_dd <= br_d;
-br_ddd <= br_dd;
-bi_d <= bi;
-bi_dd <= bi_d;
-bi_ddd <= bi_dd;
+    ar_d <= ar;
+    ar_dd <= ar_d;
+    ai_d <= ai;
+    ai_dd <= ai_d;
+    br_d <= br;
+    br_dd <= br_d;
+    br_ddd <= br_dd;
+    bi_d <= bi;
+    bi_dd <= bi_d;
+    bi_ddd <= bi_dd;
 end
 
 // Common factor (ar ai) x bi, shared for the calculations of the real and imaginary final products
 //
 always @(posedge clk)
 begin
-addcommon <= ar_d - ai_d;
-mult0 <= addcommon * bi_dd;
-common <= mult0;
+    addcommon <= ar_d - ai_d;
+    mult0 <= addcommon * bi_dd;
+    common <= mult0;
 end
 
 // Real product
 //
 always @(posedge clk)
 begin
-ar_ddd <= ar_dd;
-ar_dddd <= ar_ddd;
-addr <= br_ddd - bi_ddd;
-multr <= addr * ar_dddd;
-commonr1 <= common;
-pr_int <= multr + commonr1;
+    ar_ddd <= ar_dd;
+    ar_dddd <= ar_ddd;
+    addr <= br_ddd - bi_ddd;
+    multr <= addr * ar_dddd;
+    commonr1 <= common;
+    pr_int <= multr + commonr1;
 end
 
 // Imaginary product
 //
 always @(posedge clk)
 begin
-ai_ddd <= ai_dd;
-ai_dddd <= ai_ddd;
-addi <= br_ddd + bi_ddd;
-multi <= addi * ai_dddd;
-commonr2 <= common;
-pi_int <= multi + commonr2;
+    ai_ddd <= ai_dd;
+    ai_dddd <= ai_ddd;
+    addi <= br_ddd + bi_ddd;
+    multi <= addi * ai_dddd;
+    commonr2 <= common;
+    pi_int <= multi + commonr2;
 end
 
 assign pr = pr_int;

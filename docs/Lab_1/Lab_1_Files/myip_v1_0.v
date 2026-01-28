@@ -102,7 +102,8 @@ module myip_v1_0
 	wire	[width-1:0] RES_read_data_out;			// RES_RAM -> myip_v1_0
 	
 	// wires (or regs) to connect to matrix_multiply for assignment 1
-	wire	Start; 								// myip_v1_0 -> matrix_multiply_0. To be assigned within myip_v1_0. Possibly reg.
+    reg	Start; 								// myip_v1_0 -> matrix_multiply_0. To be assigned within myip_v1_0. Possibly reg.
+    reg Start_Sent;
 	wire	Done;								// matrix_multiply_0 -> myip_v1_0. 
 			
 	//Total numer of input data of A
@@ -217,7 +218,25 @@ module myip_v1_0
 				Compute:
 				begin
 					// Coprocessor function to be implemented (matrix multiply) should be here. Right now, nothing happens here.
-					state		<= Write_Outputs;
+					
+					//Assert start signal as a pulse/ for one cycle
+					if (!Start_Sent) begin
+					   Start <= 1'b1;
+					   Start_Sent <= 1'b1;
+					end
+					else if (Start_Sent) begin
+					   Start_Sent <= 1'b0;     // reset for next transaction
+                       state <= Write_Outputs;
+					end
+					
+					//Wait for the calculation to be done and then transition to Write outputs
+					if (!Done) begin
+					   state <= Compute;
+					end 
+					else begin
+					   state <= Write_Outputs;
+					end
+					
 					// Possible to save a cycle by asserting M_AXIS_TVALID and presenting M_AXIS_TDATA just before going into 
 					// Write_Outputs state. However, need to adjust write_counter limits accordingly
 					// Alternatively, M_AXIS_TVALID and M_AXIS_TDATA can be asserted combinationally to save a cycle.
