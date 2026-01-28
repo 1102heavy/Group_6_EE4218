@@ -17,13 +17,13 @@
 -------------------------------------------------------------------------------
 --
 -- Definition of Ports
--- ACLK              : Synchronous clock
--- ARESETN           : System reset, active low
+-- ACLK           : Synchronous clock
+-- ARESETN        : System reset, active low
 -- S_AXIS_TREADY  : Ready to accept data in
--- S_AXIS_TDATA   :  Data in 
+-- S_AXIS_TDATA   : Data in 
 -- S_AXIS_TLAST   : Optional data in qualifier
 -- S_AXIS_TVALID  : Data in is valid
--- M_AXIS_TVALID  :  Data out is valid
+-- M_AXIS_TVALID  : Data out is valid
 -- M_AXIS_TDATA   : Data Out
 -- M_AXIS_TLAST   : Optional data out qualifier
 -- M_AXIS_TREADY  : Connected slave device is ready to accept data out
@@ -82,15 +82,15 @@ module myip_v1_0
 	
 // wires (or regs) to connect to RAMs and matrix_multiply_0 for assignment 1
 // those which are assigned in an always block of myip_v1_0 shoud be changes to reg.
-	wire	A_write_en;								// myip_v1_0 -> A_RAM. To be assigned within myip_v1_0. Possibly reg.
-	wire	[A_depth_bits-1:0] A_write_address;		// myip_v1_0 -> A_RAM. To be assigned within myip_v1_0. Possibly reg. 
-	wire	[width-1:0] A_write_data_in;			// myip_v1_0 -> A_RAM. To be assigned within myip_v1_0. Possibly reg.
+	reg	A_write_en;								// myip_v1_0 -> A_RAM. To be assigned within myip_v1_0. Possibly reg.
+	reg	[A_depth_bits-1:0] A_write_address;		// myip_v1_0 -> A_RAM. To be assigned within myip_v1_0. Possibly reg. 
+	reg	[width-1:0] A_write_data_in;			// myip_v1_0 -> A_RAM. To be assigned within myip_v1_0. Possibly reg.
 	wire	A_read_en;								// matrix_multiply_0 -> A_RAM.
 	wire	[A_depth_bits-1:0] A_read_address;		// matrix_multiply_0 -> A_RAM.
 	wire	[width-1:0] A_read_data_out;			// A_RAM -> matrix_multiply_0.
-	wire	B_write_en;								// myip_v1_0 -> B_RAM. To be assigned within myip_v1_0. Possibly reg.
-	wire	[B_depth_bits-1:0] B_write_address;		// myip_v1_0 -> B_RAM. To be assigned within myip_v1_0. Possibly reg.
-	wire	[width-1:0] B_write_data_in;			// myip_v1_0 -> B_RAM. To be assigned within myip_v1_0. Possibly reg.
+	reg	B_write_en;								// myip_v1_0 -> B_RAM. To be assigned within myip_v1_0. Possibly reg.
+	reg	[B_depth_bits-1:0] B_write_address;		// myip_v1_0 -> B_RAM. To be assigned within myip_v1_0. Possibly reg.
+	reg	[width-1:0] B_write_data_in;			// myip_v1_0 -> B_RAM. To be assigned within myip_v1_0. Possibly reg.
 	wire	B_read_en;								// matrix_multiply_0 -> B_RAM.
 	wire	[B_depth_bits-1:0] B_read_address;		// matrix_multiply_0 -> B_RAM.
 	wire	[width-1:0] B_read_data_out;			// B_RAM -> matrix_multiply_0.
@@ -105,12 +105,17 @@ module myip_v1_0
 	wire	Start; 								// myip_v1_0 -> matrix_multiply_0. To be assigned within myip_v1_0. Possibly reg.
 	wire	Done;								// matrix_multiply_0 -> myip_v1_0. 
 			
+	//Total numer of input data of A
+	localparam 	NUMBER_OF_INPUT_WORDS_A = 1 << A_depth_bits;
+	
+	//Total numer of input data of B
+	localparam 	NUMBER_OF_INPUT_WORDS_B = 1 << B_depth_bits;
 				
 	// Total number of input data.
-	localparam NUMBER_OF_INPUT_WORDS  = 4; // 2**A_depth_bits + 2**B_depth_bits = 12 for assignment 1
+	localparam NUMBER_OF_INPUT_WORDS  = (NUMBER_OF_INPUT_WORDS_A + NUMBER_OF_INPUT_WORDS_B); // 2**A_depth_bits + 2**B_depth_bits = 12 for assignment 1
 
 	// Total number of output data
-	localparam NUMBER_OF_OUTPUT_WORDS = 4; // 2**RES_depth_bits = 2 for assignment 1
+	localparam NUMBER_OF_OUTPUT_WORDS = (1 << RES_depth_bits); // 2**RES_depth_bits = 2 for assignment 1
 
 	// Define the states of state machine (one hot encoding)
 	localparam Idle  = 4'b1000;
@@ -166,23 +171,46 @@ module myip_v1_0
 
 				Read_Inputs:
 				begin
+				
+                    A_write_en <= 1'b0;
+                    B_write_en <= 1'b0;
+                    
 					S_AXIS_TREADY 	<= 1;
-					if (S_AXIS_TVALID == 1) 
+					if (S_AXIS_TVALID == 1 && S_AXIS_TREADY) //if (S_AXIS_TVALID && S_AXIS_TREADY)
 					begin
-						// Coprocessor function (adding the numbers together) happens here (partly)
-						sum  	<=	sum + S_AXIS_TDATA;
+					
 						// If we are expecting a variable number of words, we should make use of S_AXIS_TLAST.
 						// Since the number of words we are expecting is fixed, we simply count and receive 
 						// the expected number (NUMBER_OF_INPUT_WORDS) instead.
 						if (read_counter == NUMBER_OF_INPUT_WORDS-1)
-						begin
-							state      		<= Compute;
-							S_AXIS_TREADY 	<= 0;
-						end
+                            begin
+                                state      		<= Compute;
+                                S_AXIS_TREADY 	<= 0;
+                            end
+						
 						else
-						begin
-							read_counter 	<= read_counter + 1;
-						end
+                            begin
+                                //start Receiving data
+                                //Starting with A then B                                                          
+                                //First 2**3 words correspond to A then next 2**2 can correspond to B in row major order
+                                
+                                if (read_counter < NUMBER_OF_INPUT_WORDS_A)
+                                    begin
+                                          //Fill in A matrix
+                                         A_write_en <= 1;
+                                         A_write_address <= read_counter;
+                                         A_write_data_in <= S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                   
+                                    end
+                                else if (read_counter < NUMBER_OF_INPUT_WORDS)
+                                    begin
+                                         //Fill in B Matrix
+                                         B_write_en <= 1;
+                                         B_write_address <= (read_counter - NUMBER_OF_INPUT_WORDS_A);
+                                         B_write_data_in <= S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                 
+                                    end
+                                
+                                read_counter 	<= read_counter + 1;
+                            end
 					end
 				end
             
@@ -293,4 +321,3 @@ module myip_v1_0
 	);
 
 endmodule
-
