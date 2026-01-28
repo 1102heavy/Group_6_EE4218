@@ -26,25 +26,134 @@ module matrix_multiply
 	(
 		input clk,										
 		input Start,									// myip_v1_0 -> matrix_multiply_0.
-		output Done,									// matrix_multiply_0 -> myip_v1_0. Possibly reg.
+		output reg Done,									// matrix_multiply_0 -> myip_v1_0. Possibly reg.
 		
-		output A_read_en,  								// matrix_multiply_0 -> A_RAM. Possibly reg.
-		output [A_depth_bits-1:0] A_read_address, 		// matrix_multiply_0 -> A_RAM. Possibly reg.
+		output reg A_read_en,  								// matrix_multiply_0 -> A_RAM. Possibly reg.
+		output reg [A_depth_bits-1:0] A_read_address, 		// matrix_multiply_0 -> A_RAM. Possibly reg.
 		input [width-1:0] A_read_data_out,				// A_RAM -> matrix_multiply_0.
 		
-		output B_read_en, 								// matrix_multiply_0 -> B_RAM. Possibly reg.
-		output [B_depth_bits-1:0] B_read_address, 		// matrix_multiply_0 -> B_RAM. Possibly reg.
+		output reg B_read_en, 								// matrix_multiply_0 -> B_RAM. Possibly reg.
+		output reg [B_depth_bits-1:0] B_read_address, 		// matrix_multiply_0 -> B_RAM. Possibly reg.
 		input [width-1:0] B_read_data_out,				// B_RAM -> matrix_multiply_0.
 		
-		output RES_write_en, 							// matrix_multiply_0 -> RES_RAM. Possibly reg.
-		output [RES_depth_bits-1:0] RES_write_address, 	// matrix_multiply_0 -> RES_RAM. Possibly reg.
-		output [width-1:0] RES_write_data_in 			// matrix_multiply_0 -> RES_RAM. Possibly reg.
+		output reg RES_write_en, 							// matrix_multiply_0 -> RES_RAM. Possibly reg.
+		output reg [RES_depth_bits-1:0] RES_write_address, 	// matrix_multiply_0 -> RES_RAM. Possibly reg.
+		output reg [width-1:0] RES_write_data_in 			// matrix_multiply_0 -> RES_RAM. Possibly reg.
 	);
 	
 	// implement the logic to read A_RAM, read B_RAM, do the multiplication and write the results to RES_RAM
 	// Note: A_RAM and B_RAM are to be read synchronously. Read the wiki for more details.
 
-	assign Done = Start; // dummy code. Change as appropriate.
+    //Define the number of elements and deduce the rows and columns
+    localparam integer A_ELEMS   = (1 << A_depth_bits);
+    localparam integer B_ELEMS   = (1 << B_depth_bits);
+    localparam integer RES_ELEMS = (1 << RES_depth_bits);
+    
+    localparam integer N = 1;              // fixed: B is Kx1
+    localparam integer K = B_ELEMS / N;    // = B_ELEMS
+    localparam integer R = RES_ELEMS / N;  // = RES_ELEMS
+    
+    localparam integer A_ROWS = R;
+    localparam integer A_COLS = K;         // “rowsize/stride” for row-major  
+    
+    //Define counters and their sizes
+    localparam ROWSIZE = (1 << B_depth_bits); //Logic: Column number for B matrix is 1. This is the ROWSIZE OF B
+    reg [$clog2(A_COLS) - 1:0] k; //Row of B = Column of A
+    reg [$clog2(A_ROWS) - 1:0] r;
+    reg [17:0 ]accumulator;
+    
+	// Define the states of state machine (one hot encoding)
+	localparam Idle  = 5'b10000;
+	localparam Read_Inputs = 5'b01000;
+	localparam Send_Address = 5'b00100;
+	localparam Compute = 5'b00010;
+	localparam Write_Outputs  = 5'b00001;
+	
+    reg [3:0] state;
+    
+    
+    always @(posedge clk) begin
+        case (state)        
+            Idle: begin
+                A_read_en <= 0;
+                B_read_en <= 0;
+                A_read_address <= 0;
+                B_read_address <= 0;
+                Done <= 0;
+                RES_write_en <= 0;
+                RES_write_address <= 0;
+                RES_write_data_in <= 0;
+                
+                k <= 0;
+                r <= 0;
+                accumulator <= 0;
+                
+                
+                if (!Start) begin
+                    state <= Idle;
+                end
+                else begin
+                    state <= Compute;
+                end
+            end
+            
+            Read_Inputs: begin
+            
+               A_read_address <= 4 * r + k;
+               B_read_address <= k;
+               A_read_en <= 1;
+               B_read_en <= 1;
+              
+               state <= Send_Address;
+            end
+            
+            Send_Address: begin
+                //Address is being sent
+                state <= Compute;
+            end
+            
+            Compute: begin
+                accumulator <= accumulator + (A_read_data_out * B_read_data_out);
+                
+                state <= Write_Outputs;
+            end
+            
+            Write_Outputs: begin
+            
+                // update k and r
+                if (k < A_COLS) begin
+                    k <= k + 1;
+                    r <= r;
+                end
+                else begin
+                    k <= 0;
+                    r <= r + 1;
+                end
+                
+                
+                
+                //Check if one row of calculation is done
+                if (k == A_COLS) begin
+                
+                    RES_write_address <= r;
+                    RES_write_en <= 1;
+                    RES_write_data_in <= accumulator;
+                end //Else process onto deciding whcih state to go to
+                
+                
+                if (r <= A_ROWS) begin
+                    state <= Read_Inputs;
+                end 
+                else begin
+                    state <= Idle;
+                    Done <= 1;
+                end                
+            end
+            
+        endcase
+
+    
+    end
 
 endmodule
 
