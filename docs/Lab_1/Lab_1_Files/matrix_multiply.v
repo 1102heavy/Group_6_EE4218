@@ -100,6 +100,12 @@ module matrix_multiply
             
             Read_Inputs: begin
             
+               //Reset RES parameters
+               RES_write_en <= 0;
+               RES_write_address <= 0;
+               RES_write_data_in <= 0;
+               accumulator <= 0;
+                
                A_read_address <= A_COLS * r + k;
                B_read_address <= k;
                A_read_en <= 1;
@@ -142,14 +148,9 @@ module matrix_multiply
                     RES_write_en <= 1;
                     RES_write_data_in <= accumulator >> 8;
                 end //Else process onto deciding whcih state to go to
-                else begin
-                    RES_write_address <= 0;
-                    RES_write_en <= 0;
-                    RES_write_data_in <= 0;
-                end
                 
                 
-                if (r < A_ROWS) begin
+                if (r < A_ROWS - 1) begin
                     state <= Read_Inputs;
                 end 
                 else begin
