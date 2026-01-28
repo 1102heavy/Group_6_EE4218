@@ -182,7 +182,7 @@ module myip_v1_0
 						// If we are expecting a variable number of words, we should make use of S_AXIS_TLAST.
 						// Since the number of words we are expecting is fixed, we simply count and receive 
 						// the expected number (NUMBER_OF_INPUT_WORDS) instead.
-						if (read_counter == NUMBER_OF_INPUT_WORDS-1)
+						if (read_counter == NUMBER_OF_INPUT_WORDS)
                             begin
                                 state      		<= Compute;
                                 S_AXIS_TREADY 	<= 0;
