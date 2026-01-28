@@ -26,19 +26,19 @@ module matrix_multiply
 	(
 		input clk,										
 		input Start,									// myip_v1_0 -> matrix_multiply_0.
-		output reg Done,									// matrix_multiply_0 -> myip_v1_0. Possibly reg.
+		output reg Done = 0,									// matrix_multiply_0 -> myip_v1_0. Possibly reg.
 		
-		output reg A_read_en,  								// matrix_multiply_0 -> A_RAM. Possibly reg.
-		output reg [A_depth_bits-1:0] A_read_address, 		// matrix_multiply_0 -> A_RAM. Possibly reg.
+		output reg A_read_en = 0,  								// matrix_multiply_0 -> A_RAM. Possibly reg.
+		output reg [A_depth_bits-1:0] A_read_address = 0, 		// matrix_multiply_0 -> A_RAM. Possibly reg.
 		input [width-1:0] A_read_data_out,				// A_RAM -> matrix_multiply_0.
 		
-		output reg B_read_en, 								// matrix_multiply_0 -> B_RAM. Possibly reg.
-		output reg [B_depth_bits-1:0] B_read_address, 		// matrix_multiply_0 -> B_RAM. Possibly reg.
+		output reg B_read_en = 0, 								// matrix_multiply_0 -> B_RAM. Possibly reg.
+		output reg [B_depth_bits-1:0] B_read_address = 0, 		// matrix_multiply_0 -> B_RAM. Possibly reg.
 		input [width-1:0] B_read_data_out,				// B_RAM -> matrix_multiply_0.
 		
-		output reg RES_write_en, 							// matrix_multiply_0 -> RES_RAM. Possibly reg.
-		output reg [RES_depth_bits-1:0] RES_write_address, 	// matrix_multiply_0 -> RES_RAM. Possibly reg.
-		output reg [width-1:0] RES_write_data_in 			// matrix_multiply_0 -> RES_RAM. Possibly reg.
+		output reg RES_write_en = 0, 							// matrix_multiply_0 -> RES_RAM. Possibly reg.
+		output reg [RES_depth_bits-1:0] RES_write_address = 0, 	// matrix_multiply_0 -> RES_RAM. Possibly reg.
+		output reg [width-1:0] RES_write_data_in = 0 			// matrix_multiply_0 -> RES_RAM. Possibly reg.
 	);
 	
 	// implement the logic to read A_RAM, read B_RAM, do the multiplication and write the results to RES_RAM
@@ -58,8 +58,8 @@ module matrix_multiply
     
     //Define counters and their sizes
     localparam ROWSIZE = (1 << B_depth_bits); //Logic: Column number for B matrix is 1. This is the ROWSIZE OF B
-    reg [$clog2(A_COLS) - 1:0] k; //Row of B = Column of A
-    reg [$clog2(A_ROWS) - 1:0] r;
+    reg [$clog2(A_COLS) - 1:0] k = 0; //Row of B = Column of A
+    reg [$clog2(A_ROWS) - 1:0] r = 0;
     reg [17:0 ]accumulator;
     
 	// Define the states of state machine (one hot encoding)
@@ -69,10 +69,11 @@ module matrix_multiply
 	localparam Compute = 5'b00010;
 	localparam Write_Outputs  = 5'b00001;
 	
-    reg [3:0] state;
+    reg [4:0] state = 0;
     
     
     always @(posedge clk) begin
+            
         case (state)        
             Idle: begin
                 A_read_en <= 0;
@@ -93,13 +94,13 @@ module matrix_multiply
                     state <= Idle;
                 end
                 else begin
-                    state <= Compute;
+                    state <= Read_Inputs;
                 end
             end
             
             Read_Inputs: begin
             
-               A_read_address <= 4 * r + k;
+               A_read_address <= A_COLS * r + k;
                B_read_address <= k;
                A_read_en <= 1;
                B_read_en <= 1;
@@ -110,6 +111,8 @@ module matrix_multiply
             Send_Address: begin
                 //Address is being sent
                 state <= Compute;
+                A_read_en <= 1;
+                B_read_en <= 1;
             end
             
             Compute: begin
@@ -121,7 +124,7 @@ module matrix_multiply
             Write_Outputs: begin
             
                 // update k and r
-                if (k < A_COLS) begin
+                if (k < A_COLS - 1) begin
                     k <= k + 1;
                     r <= r;
                 end
@@ -133,15 +136,20 @@ module matrix_multiply
                 
                 
                 //Check if one row of calculation is done
-                if (k == A_COLS) begin
+                if (k == A_COLS - 1) begin
                 
                     RES_write_address <= r;
                     RES_write_en <= 1;
-                    RES_write_data_in <= accumulator;
+                    RES_write_data_in <= accumulator >> 8;
                 end //Else process onto deciding whcih state to go to
+                else begin
+                    RES_write_address <= 0;
+                    RES_write_en <= 0;
+                    RES_write_data_in <= 0;
+                end
                 
                 
-                if (r <= A_ROWS) begin
+                if (r < A_ROWS) begin
                     state <= Read_Inputs;
                 end 
                 else begin
