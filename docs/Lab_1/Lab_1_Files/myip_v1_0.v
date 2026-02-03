@@ -123,12 +123,14 @@ module myip_v1_0
 	localparam NUMBER_OF_OUTPUT_WORDS = (1 << RES_depth_bits); // 2**RES_depth_bits = 2 for assignment 1
 
 	// Define the states of state machine (one hot encoding)
-	localparam Idle  = 4'b1000;
-	localparam Read_Inputs = 4'b0100;
-	localparam Compute = 4'b0010;
-	localparam Write_Outputs  = 4'b0001;
+	localparam Idle  = 6'b100000;
+	localparam Read_Inputs = 6'b010000;
+	localparam Compute = 6'b001000;
+	localparam Assign_Address = 6'b000100;
+	localparam Send_Address = 6'b000010;
+	localparam Write_Outputs  = 5'b000001;
 
-	reg [3:0] state;
+	reg [5:0] state;
 
 
 	// Accumulator to hold sum of inputs read at any point in time
@@ -254,7 +256,7 @@ module myip_v1_0
 					end 
 					else begin
 					   Start <=0;
-					   state <= Write_Outputs;
+					   state <= Assign_Address;
 					end
 					
 					// Possible to save a cycle by asserting M_AXIS_TVALID and presenting M_AXIS_TDATA just before going into 
@@ -262,26 +264,38 @@ module myip_v1_0
 					// Alternatively, M_AXIS_TVALID and M_AXIS_TDATA can be asserted combinationally to save a cycle.
 				STATE<=state;
 				end
-			
+				
+			    Assign_Address:
+			    begin
+			        RES_read_en <= 1;
+                    RES_read_address <= write_counter;
+                    M_AXIS_TVALID	<= 1;
+					state <= Send_Address;
+			    end
+			    
+			    Send_Address:
+			    begin
+			       RES_read_en <= 1;
+			       state <= Write_Outputs;
+			    end
+			    
 				Write_Outputs:
 				begin
-                    RES_read_en <= 1;
-                    RES_read_address <= write_counter;
-					M_AXIS_TVALID	<= 1;
-					M_AXIS_TDATA	<= RES_read_data_out;
+
 					// Coprocessor function (adding 1 to sum in each iteration = adding iteration count to sum) happens here (partly)
 					if (M_AXIS_TREADY == 1) 
 					begin
-						if (write_counter == NUMBER_OF_OUTPUT_WORDS-1)
+					    // M_AXIS_TLAST, though optional in AXIS, is necessary in practice as AXI Stream FIFO and AXI DMA expects it.
+                        M_AXIS_TDATA	<= RES_read_data_out;
+                        write_counter	<= write_counter + 1;
+                        state <= Assign_Address;
+                        
+						if (write_counter == NUMBER_OF_OUTPUT_WORDS - 1)
 						begin
 							state	<= Idle;
 							M_AXIS_TLAST	<= 1;
-							// M_AXIS_TLAST, though optional in AXIS, is necessary in practice as AXI Stream FIFO and AXI DMA expects it.
 						end
-						else
-						begin
-							write_counter	<= write_counter + 1;
-						end
+
 					end
 					STATE<=state;
 				end
