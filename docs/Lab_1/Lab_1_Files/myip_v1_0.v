@@ -43,9 +43,8 @@ module myip_v1_0
 		M_AXIS_TVALID,
 		M_AXIS_TDATA,
 		M_AXIS_TLAST,
-		M_AXIS_TREADY,
-		STATE,
-		TEST,
+		M_AXIS_TREADY
+
 		// DO NOT EDIT ABOVE THIS LINE ////////////////////
 	);
 
@@ -62,8 +61,7 @@ module myip_v1_0
 	output	reg				M_AXIS_TLAST;   // Optional data out qualifier
 	input					M_AXIS_TREADY;  // Connected slave device is ready to accept data out
     
-    output reg [3:0]        STATE;
-    output reg [3:0]        TEST;
+
 //----------------------------------------
 // Implementation Section
 //----------------------------------------
@@ -155,7 +153,7 @@ module myip_v1_0
 		begin
 			// CAUTION: make sure your reset polarity is consistent with the system reset polarity
 			state        <= Idle;
-			STATE<=state;
+			
         end
 		else
 		begin
@@ -176,7 +174,7 @@ module myip_v1_0
 						S_AXIS_TREADY 	<= 1; 
 						// start receiving data once you go into Read_Inputs
 					end
-					STATE<=state;
+					
 				end
 
 				Read_Inputs:
@@ -192,7 +190,6 @@ module myip_v1_0
 						// If we are expecting a variable number of words, we should make use of S_AXIS_TLAST.
 						// Since the number of words we are expecting is fixed, we simply count and receive 
 						// the expected number (NUMBER_OF_INPUT_WORDS) instead.
-						TEST<= read_counter;
 
 						
 //						else
@@ -226,12 +223,11 @@ module myip_v1_0
                             end
 
 					end
-					STATE<=state;
+					
 				end
             
 				Compute:
 				begin
-				    TEST <= Done;
 				    A_write_en <= 0;
                     B_write_en <= 0;
 					// Coprocessor function to be implemented (matrix multiply) should be here. Right now, nothing happens here.
@@ -260,7 +256,7 @@ module myip_v1_0
 					// Possible to save a cycle by asserting M_AXIS_TVALID and presenting M_AXIS_TDATA just before going into 
 					// Write_Outputs state. However, need to adjust write_counter limits accordingly
 					// Alternatively, M_AXIS_TVALID and M_AXIS_TDATA can be asserted combinationally to save a cycle.
-				STATE<=state;
+				
 				end
 			
 				Write_Outputs:
@@ -283,7 +279,6 @@ module myip_v1_0
 							write_counter	<= write_counter + 1;
 						end
 					end
-					STATE<=state;
 				end
 			endcase
 		end
