@@ -71,6 +71,7 @@ module matrix_multiply
 	localparam DONE = 6'b000001;
 	
     reg [5:0] state = 6'b100000;
+    reg [1:0] acc_reset = 0;
     
     
     always @(posedge clk) begin
@@ -100,8 +101,14 @@ module matrix_multiply
             end
             
             Read_Inputs: begin
+               
             
-               //Reset RES parameters
+//               Reset RES parameters
+               if(acc_reset == 1)begin
+                    accumulator <= 0;
+                    acc_reset <=0;
+               end
+               
                RES_write_en <= 0;
                RES_write_address <= 0;
                RES_write_data_in <= 0;
@@ -146,16 +153,22 @@ module matrix_multiply
                 
                     RES_write_address <= r;
                     RES_write_en <= 1;
-                    RES_write_data_in <= accumulator >> 8;
-                    accumulator <= 0;
+                    RES_write_data_in <= accumulator;
+                    acc_reset <=1;
+//                    accumulator <= 0;
+                    
                 end //Else process onto deciding whcih state to go to
                 
                 
-                if (r < A_ROWS - 1) begin
+                if (r < A_ROWS) begin
                     state <= Read_Inputs;
+
                 end 
                 else begin
+                    accumulator <= 0;
+                    RES_write_en <= 0;
                     Done <= 1;
+                    state <= DONE;
                 end                
             end
             

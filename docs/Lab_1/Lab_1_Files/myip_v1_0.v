@@ -106,7 +106,7 @@ module myip_v1_0
 	wire	[width-1:0] RES_read_data_out;			// RES_RAM -> myip_v1_0
 	
 	// wires (or regs) to connect to matrix_multiply for assignment 1
-    reg	Start; 								// myip_v1_0 -> matrix_multiply_0. To be assigned within myip_v1_0. Possibly reg.
+    reg	Start = 0; 								// myip_v1_0 -> matrix_multiply_0. To be assigned within myip_v1_0. Possibly reg.
     reg Start_Sent;
 	wire	Done;								// matrix_multiply_0 -> myip_v1_0. 
 	
@@ -193,14 +193,10 @@ module myip_v1_0
 						// Since the number of words we are expecting is fixed, we simply count and receive 
 						// the expected number (NUMBER_OF_INPUT_WORDS) instead.
 						TEST<= read_counter;
-						if (read_counter == NUMBER_OF_INPUT_WORDS-1)
-                            begin
-                                state      		<= Compute;
-                                S_AXIS_TREADY 	<= 0;
-                            end
+
 						
-						else
-                            begin
+//						else
+//                            begin
                                 //start Receiving data
                                 //Starting with A then B                                                          
                                 //First 2**3 words correspond to A then next 2**2 can correspond to B in row major order
@@ -221,7 +217,14 @@ module myip_v1_0
                                     end
                                 
                                 read_counter 	<= read_counter + 1;
+//                            end
+                        if (read_counter == NUMBER_OF_INPUT_WORDS-1)
+                            begin
+                               
+                                state      		<= Compute;
+                                S_AXIS_TREADY 	<= 0;
                             end
+
 					end
 					STATE<=state;
 				end
@@ -229,17 +232,20 @@ module myip_v1_0
 				Compute:
 				begin
 				    TEST <= Done;
+				    A_write_en <= 0;
+                    B_write_en <= 0;
 					// Coprocessor function to be implemented (matrix multiply) should be here. Right now, nothing happens here.
 					
 					//Assert start signal as a pulse/ for one cycle
-					if (!Start_Sent) begin
-					   Start <= 1'b1;
-					   Start_Sent <= 1'b1;
-					end
-					else if (Start_Sent) begin
-					   Start_Sent <= 1'b0;     // reset for next transaction
-                       state <= Write_Outputs;
-					end
+//					if (!Start_Sent) begin
+//					   Start <= 1'b1;
+//					   Start_Sent <= 1'b1;
+//					end
+//					else if (Start_Sent) begin
+//					   Start_Sent <= 1'b0;     // reset for next transaction
+//                       state <= Write_Outputs;
+//					end
+                    Start <=1;
 					
 					//Wait for the calculation to be done and then transition to Write outputs
 					if (!Done) begin
@@ -247,6 +253,7 @@ module myip_v1_0
 					   
 					end 
 					else begin
+					   Start <=0;
 					   state <= Write_Outputs;
 					end
 					

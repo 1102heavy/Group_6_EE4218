@@ -75,7 +75,7 @@ reg [7:0] vecB [0:7];
     vecA[0]=8'h01; vecA[1]=8'h02; vecA[2]=8'h03; vecA[3]=8'h04;
     vecA[4]=8'h05; vecA[5]=8'h06; vecA[6]=8'h07; vecA[7]=8'h08;
 
-    vecB[0]=8'h01; vecB[1]=8'h01; vecB[2]=8'h01; vecB[3]=8'h01;
+    vecB[0]=8'd1; vecB[1]=8'd1; vecB[2]=8'd1; vecB[3]=8'd1;
   end
   
   
