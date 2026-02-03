@@ -116,7 +116,7 @@ module tb_myip_v1_0(
 					begin
 						if(M_AXIS_TVALID)
 						begin
-							result_memory[word_cnt] = M_AXIS_TDATA;
+							result_memory[word_cnt+test_case_cnt*NUMBER_OF_OUTPUT_WORDS] = M_AXIS_TDATA;
 							$display("[%0t] OUT tc=%0d word=%0d  TDATA=0x%08h (%0d)  TLAST=%b  TREADY=%b  TVALID=%b",
                                       $time, test_case_cnt, word_cnt, M_AXIS_TDATA, M_AXIS_TDATA,
                                       M_AXIS_TLAST, M_AXIS_TREADY, M_AXIS_TVALID);

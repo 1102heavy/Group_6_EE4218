@@ -136,7 +136,7 @@ module myip_v1_0
   // Could be done using the same counter if reads and writes are not overlapped (i.e., no dataflow optimization)
   // Left as separate for ease of debugging
   reg [$clog2(NUMBER_OF_INPUT_WORDS) - 1:0] read_counter;
-  reg [$clog2(NUMBER_OF_OUTPUT_WORDS) - 1:0] write_counter;
+  reg [$clog2(NUMBER_OF_OUTPUT_WORDS):0] write_counter;
 
    // CAUTION:
    // The sequence in which data are read in and written out should be
@@ -252,6 +252,8 @@ module myip_v1_0
           else begin
              Start <=0;
              state <= Assign_Address;
+             RES_read_en <= 1;
+             RES_read_address <= write_counter;
           end
           
           // Possible to save a cycle by asserting M_AXIS_TVALID and presenting M_AXIS_TDATA just before going into 
@@ -262,15 +264,21 @@ module myip_v1_0
         
         Assign_Address:
           begin
+//              write_counter  <= write_counter + 1;
               RES_read_en <= 1;
               RES_read_address <= write_counter;
+              
               state <= Send_Address;
+              write_counter  <= write_counter + 1;
           end
           
          Send_Address:
           begin
-             RES_read_en <= 1;
-             state <= Write_Outputs;
+              RES_read_en <= 1;
+              RES_read_address <= write_counter;
+              
+              state <= Write_Outputs;
+              write_counter  <= write_counter + 1;
           end
           
         Write_Outputs:
@@ -281,11 +289,14 @@ module myip_v1_0
           begin
               // M_AXIS_TLAST, though optional in AXIS, is necessary in practice as AXI Stream FIFO and AXI DMA expects it.
                         M_AXIS_TDATA  <= RES_read_data_out;
-                        write_counter  <= write_counter + 1;
-                        state <= Assign_Address;
-                        M_AXIS_TVALID  <= 1;
+                        RES_read_en <= 1;
+                        RES_read_address <= write_counter;
                         
-            if (write_counter == NUMBER_OF_OUTPUT_WORDS - 1)
+//                        state <= Assign_Address;
+                        M_AXIS_TVALID  <= 1;
+                        write_counter  <= write_counter + 1;
+                        
+            if (write_counter >= NUMBER_OF_OUTPUT_WORDS+1)
             begin
               state  <= Idle;
               M_AXIS_TLAST  <= 1;
