@@ -153,8 +153,9 @@ module matrix_multiply
                 
                     RES_write_address <= r;
                     RES_write_en <= 1;
-                    RES_write_data_in <= (accumulator >> 8);
+                    RES_write_data_in <= accumulator;
                     acc_reset <=1;
+//                    accumulator <= 0;
                     
                 end //Else process onto deciding whcih state to go to
                 
