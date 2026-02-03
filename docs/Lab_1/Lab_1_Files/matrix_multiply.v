@@ -164,9 +164,9 @@ module matrix_multiply
                     state <= Read_Inputs;
 
                 end 
-                else begin
-                    accumulator <= 0;
-                    RES_write_en <= 0;
+                if(k==A_COLS-1 && r==A_ROWS-1)
+                begin
+
                     Done <= 1;
                     state <= DONE;
                 end                
