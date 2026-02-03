@@ -264,7 +264,6 @@ module myip_v1_0
           begin
               RES_read_en <= 1;
               RES_read_address <= write_counter;
-              M_AXIS_TVALID  <= 1;
               state <= Send_Address;
           end
           
@@ -284,6 +283,7 @@ module myip_v1_0
                         M_AXIS_TDATA  <= RES_read_data_out;
                         write_counter  <= write_counter + 1;
                         state <= Assign_Address;
+                        M_AXIS_TVALID  <= 1;
                         
             if (write_counter == NUMBER_OF_OUTPUT_WORDS - 1)
             begin
