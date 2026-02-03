@@ -43,7 +43,9 @@ module myip_v1_0
 		M_AXIS_TVALID,
 		M_AXIS_TDATA,
 		M_AXIS_TLAST,
-		M_AXIS_TREADY
+		M_AXIS_TREADY,
+		STATE,
+		TEST,
 		// DO NOT EDIT ABOVE THIS LINE ////////////////////
 	);
 
@@ -59,7 +61,9 @@ module myip_v1_0
 	output	reg [31 : 0]	M_AXIS_TDATA;   // Data Out
 	output	reg				M_AXIS_TLAST;   // Optional data out qualifier
 	input					M_AXIS_TREADY;  // Connected slave device is ready to accept data out
-
+    
+    output reg [3:0]        STATE;
+    output reg [3:0]        TEST;
 //----------------------------------------
 // Implementation Section
 //----------------------------------------
@@ -97,15 +101,15 @@ module myip_v1_0
 	wire	RES_write_en;							// matrix_multiply_0 -> RES_RAM.
 	wire	[RES_depth_bits-1:0] RES_write_address;	// matrix_multiply_0 -> RES_RAM.
 	wire	[width-1:0] RES_write_data_in;			// matrix_multiply_0 -> RES_RAM.
-	wire	RES_read_en;  							// myip_v1_0 -> RES_RAM. To be assigned within myip_v1_0. Possibly reg.
-	wire	[RES_depth_bits-1:0] RES_read_address;	// myip_v1_0 -> RES_RAM. To be assigned within myip_v1_0. Possibly reg.
+	reg	RES_read_en;  							// myip_v1_0 -> RES_RAM. To be assigned within myip_v1_0. Possibly reg.
+	reg	[RES_depth_bits-1:0] RES_read_address;	// myip_v1_0 -> RES_RAM. To be assigned within myip_v1_0. Possibly reg.
 	wire	[width-1:0] RES_read_data_out;			// RES_RAM -> myip_v1_0
 	
 	// wires (or regs) to connect to matrix_multiply for assignment 1
     reg	Start; 								// myip_v1_0 -> matrix_multiply_0. To be assigned within myip_v1_0. Possibly reg.
     reg Start_Sent;
 	wire	Done;								// matrix_multiply_0 -> myip_v1_0. 
-			
+	
 	//Total numer of input data of A
 	localparam 	NUMBER_OF_INPUT_WORDS_A = 1 << A_depth_bits;
 	
@@ -126,6 +130,7 @@ module myip_v1_0
 
 	reg [3:0] state;
 
+
 	// Accumulator to hold sum of inputs read at any point in time
 	reg [31:0] sum;
 
@@ -141,6 +146,7 @@ module myip_v1_0
 
 	always @(posedge ACLK) 
 	begin
+	   
 	// implemented as a single-always Moore machine
 	// a Mealy machine that asserts S_AXIS_TREADY and captures S_AXIS_TDATA etc can save a clock cycle
 
@@ -149,6 +155,7 @@ module myip_v1_0
 		begin
 			// CAUTION: make sure your reset polarity is consistent with the system reset polarity
 			state        <= Idle;
+			STATE<=state;
         end
 		else
 		begin
@@ -156,6 +163,7 @@ module myip_v1_0
 
 				Idle:
 				begin
+				    
 					read_counter 	<= 0;
 					write_counter 	<= 0;
 					sum          	<= 0;
@@ -168,6 +176,7 @@ module myip_v1_0
 						S_AXIS_TREADY 	<= 1; 
 						// start receiving data once you go into Read_Inputs
 					end
+					STATE<=state;
 				end
 
 				Read_Inputs:
@@ -183,7 +192,8 @@ module myip_v1_0
 						// If we are expecting a variable number of words, we should make use of S_AXIS_TLAST.
 						// Since the number of words we are expecting is fixed, we simply count and receive 
 						// the expected number (NUMBER_OF_INPUT_WORDS) instead.
-						if (read_counter == NUMBER_OF_INPUT_WORDS)
+						TEST<= read_counter;
+						if (read_counter == NUMBER_OF_INPUT_WORDS-1)
                             begin
                                 state      		<= Compute;
                                 S_AXIS_TREADY 	<= 0;
@@ -213,10 +223,12 @@ module myip_v1_0
                                 read_counter 	<= read_counter + 1;
                             end
 					end
+					STATE<=state;
 				end
             
 				Compute:
 				begin
+				    TEST <= Done;
 					// Coprocessor function to be implemented (matrix multiply) should be here. Right now, nothing happens here.
 					
 					//Assert start signal as a pulse/ for one cycle
@@ -232,6 +244,7 @@ module myip_v1_0
 					//Wait for the calculation to be done and then transition to Write outputs
 					if (!Done) begin
 					   state <= Compute;
+					   
 					end 
 					else begin
 					   state <= Write_Outputs;
@@ -240,12 +253,15 @@ module myip_v1_0
 					// Possible to save a cycle by asserting M_AXIS_TVALID and presenting M_AXIS_TDATA just before going into 
 					// Write_Outputs state. However, need to adjust write_counter limits accordingly
 					// Alternatively, M_AXIS_TVALID and M_AXIS_TDATA can be asserted combinationally to save a cycle.
+				STATE<=state;
 				end
 			
 				Write_Outputs:
 				begin
+                    RES_read_en <= 1;
+                    RES_read_address <= write_counter;
 					M_AXIS_TVALID	<= 1;
-					M_AXIS_TDATA	<= sum + write_counter;
+					M_AXIS_TDATA	<= RES_read_data_out;
 					// Coprocessor function (adding 1 to sum in each iteration = adding iteration count to sum) happens here (partly)
 					if (M_AXIS_TREADY == 1) 
 					begin
@@ -260,6 +276,7 @@ module myip_v1_0
 							write_counter	<= write_counter + 1;
 						end
 					end
+					STATE<=state;
 				end
 			endcase
 		end

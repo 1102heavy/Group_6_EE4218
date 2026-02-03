@@ -38,7 +38,7 @@ module matrix_multiply
 		
 		output reg RES_write_en = 0, 							// matrix_multiply_0 -> RES_RAM. Possibly reg.
 		output reg [RES_depth_bits-1:0] RES_write_address = 0, 	// matrix_multiply_0 -> RES_RAM. Possibly reg.
-		output reg [width-1:0] RES_write_data_in = 0 			// matrix_multiply_0 -> RES_RAM. Possibly reg.
+		output reg [width-1:0] RES_write_data_in = 0			// matrix_multiply_0 -> RES_RAM. Possibly reg.
 	);
 	
 	// implement the logic to read A_RAM, read B_RAM, do the multiplication and write the results to RES_RAM
@@ -155,7 +155,6 @@ module matrix_multiply
                     state <= Read_Inputs;
                 end 
                 else begin
-                    state <= DONE;
                     Done <= 1;
                 end                
             end
