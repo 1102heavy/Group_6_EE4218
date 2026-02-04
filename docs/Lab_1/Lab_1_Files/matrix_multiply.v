@@ -58,39 +58,55 @@ module matrix_multiply
     
     //Define counters and their sizes
     localparam ROWSIZE = (1 << B_depth_bits); //Logic: Column number for B matrix is 1. This is the ROWSIZE OF B
-    reg [$clog2(A_COLS) - 1:0] k = 0; //Row of B = Column of A
-    reg [$clog2(A_ROWS) - 1:0] r = 0;
-    reg [17:0 ]accumulator;
+    reg [$clog2(A_COLS):0] k = 0; //Row of B = Column of A
+    reg [$clog2(A_ROWS):0] r = 0;
+    reg [17:0 ]accumulator=0;
+    reg [17:0 ]product=0;
     
 	// Define the states of state machine (one hot encoding)
 	localparam Idle  = 6'b100000;
 	localparam Read_Inputs = 6'b010000;
-	localparam Send_Address = 6'b001000;
-	localparam Compute = 6'b000100;
+	localparam Compute = 6'b001000;
+	localparam Sum = 6'b000100;
 	localparam Write_Outputs  = 6'b000010;
 	localparam DONE = 6'b000001;
+	localparam Wait = 6'b000000;
 	
     reg [5:0] state = 6'b100000;
+    reg [5:0] prev_state = 6'b100000;
     reg [1:0] acc_reset = 0;
+    reg [1:0] count_en = 0;
     
     
     always @(posedge clk) begin
-            
-        case (state)        
-            Idle: begin
-                A_read_en <= 0;
-                B_read_en <= 0;
-                A_read_address <= 0;
-                B_read_address <= 0;
-                Done <= 0;
-                RES_write_en <= 0;
-                RES_write_address <= 0;
-                RES_write_data_in <= 0;
-                
-                k <= 0;
-                r <= 0;
-                accumulator <= 0;
-                
+  
+        prev_state<= state;
+         
+        
+        
+        if(acc_reset == 1)begin
+            accumulator <= 0;
+            acc_reset <=0;
+            k<=0; 
+            if(r==A_ROWS-1) begin
+                r<=0;
+            end
+            else begin    
+                r=r+1;
+            end
+        end
+        else if(count_en==1) begin
+            accumulator=accumulator+product;
+            k=k+1;
+
+        end
+        
+       
+    end
+    
+    always @(*) begin        
+        case (prev_state)        
+            Idle: begin  
                 
                 if (!Start) begin
                     state <= Idle;
@@ -104,11 +120,8 @@ module matrix_multiply
                
             
 //               Reset RES parameters
-               if(acc_reset == 1)begin
-                    accumulator <= 0;
-                    acc_reset <=0;
-               end
-               
+
+               acc_reset <=0;
                RES_write_en <= 0;
                RES_write_address <= 0;
                RES_write_data_in <= 0;
@@ -117,64 +130,55 @@ module matrix_multiply
                B_read_address <= k;
                A_read_en <= 1;
                B_read_en <= 1;
-              
-               state <= Send_Address;
-            end
-            
-            Send_Address: begin
-                //Address is being sent
-                state <= Compute;
-                A_read_en <= 1;
-                B_read_en <= 1;
+               count_en <=0;
+               state <= Compute;
             end
             
             Compute: begin
-                accumulator <= accumulator + (A_read_data_out * B_read_data_out);
-                
-                state <= Write_Outputs;
+                //Address is being sent
+                state <= Sum;
+                product <= (A_read_data_out * B_read_data_out);
+                count_en <=1;
+
             end
             
-            Write_Outputs: begin
-            
-                // update k and r
-                if (k < A_COLS - 1) begin
-                    k <= k + 1;
-                    r <= r;
+            Sum: begin
+                count_en <=0;
+
+                //Check if one row of calculation is done
+                if(k==A_COLS) begin
+                    state<= Write_Outputs;
                 end
                 else begin
-                    k <= 0;
-                    r <= r + 1;
-                end
                 
-                
-                
-                //Check if one row of calculation is done
-                if (k == A_COLS - 1) begin
-                
-                    RES_write_address <= r;
-                    RES_write_en <= 1;
-                    RES_write_data_in <= accumulator>>8;
-                    acc_reset <=1;
-//                    accumulator <= 0;
-                    
-                end //Else process onto deciding whcih state to go to
-                
-                
-                if (r < A_ROWS) begin
                     state <= Read_Inputs;
+                end     
+            end
 
+            
+            Write_Outputs: begin
+                RES_write_address <= r;
+                RES_write_en <= 1;
+                RES_write_data_in <= accumulator>>8;
+                acc_reset <=1;
+                
+                
+                if(r==A_ROWS-1) begin
+                   state <= DONE;
                 end 
-                if(k==A_COLS-1 && r==A_ROWS-1)
-                begin
-
-                    Done <= 1;
-                    state <= DONE;
-                end                
+                else begin
+                    state <= Read_Inputs;
+                end
+            
+       
             end
             
             DONE: begin
+                Done <= 1;
+                RES_write_en <=0;
                 state <= Idle;
             end
+            
             
         endcase
 

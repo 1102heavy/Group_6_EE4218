@@ -126,23 +126,57 @@ module myip_v1_0
   localparam Send_Address = 6'b000010;
   localparam Write_Outputs  = 5'b000001;
 
-  reg [5:0] state;
+  reg [5:0] state = 6'b100000;
+  reg [5:0] prev_state = 6'b100000;
+  reg [1:0] read_counter_en =0;
+  reg [1:0] write_counter_en=0;
+  reg [1:0] read_counter_rst =0;
+  reg [1:0] write_counter_rst=0;
 
 
   // Accumulator to hold sum of inputs read at any point in time
-  reg [31:0] sum;
 
   // Counters to store the number inputs read & outputs written.
   // Could be done using the same counter if reads and writes are not overlapped (i.e., no dataflow optimization)
   // Left as separate for ease of debugging
-  reg [$clog2(NUMBER_OF_INPUT_WORDS) - 1:0] read_counter;
-  reg [$clog2(NUMBER_OF_OUTPUT_WORDS):0] write_counter;
+  reg [$clog2(NUMBER_OF_INPUT_WORDS) - 1:0] read_counter =0;
+  reg [$clog2(NUMBER_OF_OUTPUT_WORDS):0] write_counter=0;
 
    // CAUTION:
    // The sequence in which data are read in and written out should be
    // consistent with the sequence they are written and read in the driver's hw_acc.c file
-
   always @(posedge ACLK) 
+  begin
+    prev_state<=state;
+    if(read_counter_en==1)
+    begin
+        read_counter <= read_counter+1;
+//        read_counter_en<=0;
+    end
+    
+    if(read_counter_rst==1)
+    begin
+        read_counter <= 0;
+        read_counter_rst = 0;
+//        read_counter_en<=0;
+    end
+    
+    if(write_counter_en==1)
+    begin
+        write_counter <=write_counter+1;
+//        write_counter_en<=0;
+    end
+    
+    if(write_counter_rst==1)
+    begin
+        write_counter <= 0;
+        write_counter_rst = 0;
+//        read_counter_en<=0;
+    end
+    
+  end
+  
+  always @(*) 
   begin
      
   // implemented as a single-always Moore machine
@@ -153,25 +187,21 @@ module myip_v1_0
     begin
       // CAUTION: make sure your reset polarity is consistent with the system reset polarity
       state        <= Idle;
-
-        end
+    end
     else
     begin
-      case (state)
+      case (prev_state)
 
         Idle:
         begin
             
-          read_counter   <= 0;
-          write_counter   <= 0;
-          sum            <= 0;
-          S_AXIS_TREADY   <= 0;
           M_AXIS_TVALID   <= 0;
           M_AXIS_TLAST    <= 0;
           if (S_AXIS_TVALID == 1)
           begin
             state         <= Read_Inputs;
             S_AXIS_TREADY   <= 1; 
+            read_counter_en<=1;
             // start receiving data once you go into Read_Inputs
           end
 
@@ -180,80 +210,71 @@ module myip_v1_0
         Read_Inputs:
         begin
         
-                    A_write_en <= 1'b0;
-                    B_write_en <= 1'b0;
-                    
-          S_AXIS_TREADY   <= 1;
-          if (S_AXIS_TVALID == 1 && S_AXIS_TREADY) //if (S_AXIS_TVALID && S_AXIS_TREADY)
-          begin
           
-            // If we are expecting a variable number of words, we should make use of S_AXIS_TLAST.
-            // Since the number of words we are expecting is fixed, we simply count and receive 
-            // the expected number (NUMBER_OF_INPUT_WORDS) instead.
+          
+          if (S_AXIS_TVALID == 1) //if (S_AXIS_TVALID && S_AXIS_TREADY)
+          begin
+              
+//             If we are expecting a variable number of words, we should make use of S_AXIS_TLAST.
+//             Since the number of words we are expecting is fixed, we simply count and receive 
+//             the expected number (NUMBER_OF_INPUT_WORDS) instead.
 
-
+//                        start Receiving data
+//                        Starting with A then B                                                          
+//                        First 2**3 words correspond to A then next 2**2 can correspond to B in row major order
             
-//            else
-//                            begin
-                                //start Receiving data
-                                //Starting with A then B                                                          
-                                //First 2**3 words correspond to A then next 2**2 can correspond to B in row major order
-                                
-                                if (read_counter < NUMBER_OF_INPUT_WORDS_A)
-                                    begin
-                                          //Fill in A matrix
-                                         A_write_en <= 1;
-                                         A_write_address <= read_counter;
-                                         A_write_data_in <= S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                   
-                                    end
-                                else if (read_counter < NUMBER_OF_INPUT_WORDS)
-                                    begin
-                                         //Fill in B Matrix
-                                         B_write_en <= 1;
-                                         B_write_address <= (read_counter - NUMBER_OF_INPUT_WORDS_A);
-                                         B_write_data_in <= S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                 
-                                    end
-                                
-                                read_counter   <= read_counter + 1;
-//                            end
-                        if (read_counter == NUMBER_OF_INPUT_WORDS-1)
-                            begin
-                               
-                                state          <= Compute;
-                                S_AXIS_TREADY   <= 0;
-                            end
-                            
- end
+            if (read_counter <= NUMBER_OF_INPUT_WORDS_A)
+                begin
+                      //Fill in A matrix
+                     A_write_en <= 1;
+                     A_write_address <= read_counter-1;
+                     A_write_data_in <= S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                   
+                end
+            else if (read_counter <= NUMBER_OF_INPUT_WORDS)
+                begin
+                     //Fill in B Matrix
+                     B_write_en <= 1;
+                     B_write_address <= (read_counter-1 - NUMBER_OF_INPUT_WORDS_A);
+                     B_write_data_in <= S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                 
+                end
+            
+            else if (read_counter > NUMBER_OF_INPUT_WORDS)
+                begin
+                    S_AXIS_TREADY   <= 0;
+                    read_counter_en   <= 0;
+                    read_counter_rst   <= 1;
+                    A_write_en <= 0;
+                    B_write_en <= 0;
+                    state <= Compute;
 
+                end
+          end
+                            
         end
+        
+
             
         Compute:
         begin
-            A_write_en <= 0;
-            B_write_en <= 0;
+            
           // Coprocessor function to be implemented (matrix multiply) should be here. Right now, nothing happens here.
           
-          //Assert start signal as a pulse/ for one cycle
-//          if (!Start_Sent) begin
-//             Start <= 1'b1;
-//             Start_Sent <= 1'b1;
-//          end
-//          else if (Start_Sent) begin
-//             Start_Sent <= 1'b0;     // reset for next transaction
-//                       state <= Write_Outputs;
-//          end
-            Start <=1;
+            
           
           //Wait for the calculation to be done and then transition to Write outputs
           if (!Done) begin
              state <= Compute;
+             Start <=1;
              
           end 
           else begin
+             
+             state <= Write_Outputs;
              Start <=0;
-             state <= Assign_Address;
              RES_read_en <= 1;
+//             RES_write_en <= 0;
              RES_read_address <= write_counter;
+             write_counter_en <=1;
              
           end
           
@@ -266,20 +287,16 @@ module myip_v1_0
         Assign_Address:
           begin
 //              write_counter  <= write_counter + 1;
-              RES_read_en <= 1;
               RES_read_address <= write_counter;
               
               state <= Send_Address;
-              write_counter  <= write_counter + 1;
           end
           
          Send_Address:
           begin
-              RES_read_en <= 1;
               RES_read_address <= write_counter;
               
               state <= Write_Outputs;
-              write_counter  <= write_counter + 1;
           end
           
         Write_Outputs:
@@ -289,20 +306,20 @@ module myip_v1_0
           if (M_AXIS_TREADY == 1) 
           begin
               // M_AXIS_TLAST, though optional in AXIS, is necessary in practice as AXI Stream FIFO and AXI DMA expects it.
-                        M_AXIS_TDATA  <= RES_read_data_out;
-                        RES_read_en <= 1;
-                        RES_read_address <= write_counter;
-                        
+                M_AXIS_TDATA  <= RES_read_data_out;
+                RES_read_en <= 1;
+                RES_read_address <= write_counter;
+                
 //                        state <= Assign_Address;
-                        M_AXIS_TVALID  <= 1;
-                        write_counter  <= write_counter + 1;
-                        
+                M_AXIS_TVALID  <= 1;                        
             if (write_counter >= NUMBER_OF_OUTPUT_WORDS+1)
             begin
               state  <= Idle;
               M_AXIS_TLAST  <= 1;
+              write_counter_en   <=0;
+              write_counter_rst  <=1;
             end
-end
+          end
 
         end
       endcase
