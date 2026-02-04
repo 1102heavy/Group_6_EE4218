@@ -242,7 +242,7 @@ module myip_v1_0
 //             Start_Sent <= 1'b0;     // reset for next transaction
 //                       state <= Write_Outputs;
 //          end
-                    Start <=1;
+            Start <=1;
           
           //Wait for the calculation to be done and then transition to Write outputs
           if (!Done) begin
@@ -254,6 +254,7 @@ module myip_v1_0
              state <= Assign_Address;
              RES_read_en <= 1;
              RES_read_address <= write_counter;
+             
           end
           
           // Possible to save a cycle by asserting M_AXIS_TVALID and presenting M_AXIS_TDATA just before going into 
