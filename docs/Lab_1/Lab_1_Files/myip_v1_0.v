@@ -235,9 +235,9 @@ module myip_v1_0
         end
       endcase
     end
-    end
+ end
     
-always @(*) 
+always @(*) // outputs
   begin
      
   // implemented as a single-always Moore machine
