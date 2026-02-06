@@ -92,12 +92,12 @@ module matrix_multiply
                 r<=0;
             end
             else begin    
-                r=r+1;
+                r<=r+1;
             end
         end
         else if(count_en==1) begin
             accumulator=accumulator+product;
-            k=k+1;
+            k<=k+1;
 
         end
         
@@ -109,10 +109,10 @@ module matrix_multiply
             Idle: begin  
                 
                 if (!Start) begin
-                    state <= Idle;
+                    state = Idle;
                 end
                 else begin
-                    state <= Read_Inputs;
+                    state = Read_Inputs;
                 end
             end
             
@@ -121,62 +121,62 @@ module matrix_multiply
             
 //               Reset RES parameters
 
-               acc_reset <=0;
-               RES_write_en <= 0;
-               RES_write_address <= 0;
-               RES_write_data_in <= 0;
+               acc_reset =0;
+               RES_write_en = 0;
+               RES_write_address = 0;
+               RES_write_data_in = 0;
                 
-               A_read_address <= A_COLS * r + k;
-               B_read_address <= k;
-               A_read_en <= 1;
-               B_read_en <= 1;
-               count_en <=0;
-               state <= Compute;
+               A_read_address = A_COLS * r + k;
+               B_read_address = k;
+               A_read_en = 1;
+               B_read_en = 1;
+               count_en =0;
+               state = Compute;
             end
             
             Compute: begin
                 //Address is being sent
-                state <= Sum;
-                product <= (A_read_data_out * B_read_data_out);
-                count_en <=1;
+                state = Sum;
+                product = (A_read_data_out * B_read_data_out);
+                count_en =1;
 
             end
             
             Sum: begin
-                count_en <=0;
+                count_en =0;
 
                 //Check if one row of calculation is done
                 if(k==A_COLS) begin
-                    state<= Write_Outputs;
+                    state= Write_Outputs;
                 end
                 else begin
                 
-                    state <= Read_Inputs;
+                    state = Read_Inputs;
                 end     
             end
 
             
             Write_Outputs: begin
-                RES_write_address <= r;
-                RES_write_en <= 1;
-                RES_write_data_in <= accumulator>>8;
-                acc_reset <=1;
+                RES_write_address = r;
+                RES_write_en = 1;
+                RES_write_data_in = accumulator>>8;
+                acc_reset =1;
                 
                 
                 if(r==A_ROWS-1) begin
-                   state <= DONE;
+                   state = DONE;
                 end 
                 else begin
-                    state <= Read_Inputs;
+                    state = Read_Inputs;
                 end
             
        
             end
             
             DONE: begin
-                Done <= 1;
-                RES_write_en <=0;
-                state <= Idle;
+                Done = 1;
+                RES_write_en =0;
+                state = Idle;
             end
             
             

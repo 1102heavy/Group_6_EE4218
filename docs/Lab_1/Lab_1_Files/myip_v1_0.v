@@ -157,7 +157,7 @@ module myip_v1_0
     if(read_counter_rst==1)
     begin
         read_counter <= 0;
-        read_counter_rst = 0;
+        read_counter_rst <= 0;
 //        read_counter_en<=0;
     end
     
@@ -170,7 +170,7 @@ module myip_v1_0
     if(write_counter_rst==1)
     begin
         write_counter <= 0;
-        write_counter_rst = 0;
+        write_counter_rst <= 0;
 //        read_counter_en<=0;
     end
     
@@ -195,13 +195,13 @@ module myip_v1_0
         Idle:
         begin
             
-          M_AXIS_TVALID   <= 0;
-          M_AXIS_TLAST    <= 0;
+          M_AXIS_TVALID   = 0;
+          M_AXIS_TLAST    = 0;
           if (S_AXIS_TVALID == 1)
           begin
-            state         <= Read_Inputs;
-            S_AXIS_TREADY   <= 1; 
-            read_counter_en<=1;
+            state         = Read_Inputs;
+            S_AXIS_TREADY   = 1; 
+            read_counter_en=1;
             // start receiving data once you go into Read_Inputs
           end
 
@@ -226,25 +226,25 @@ module myip_v1_0
             if (read_counter <= NUMBER_OF_INPUT_WORDS_A)
                 begin
                       //Fill in A matrix
-                     A_write_en <= 1;
-                     A_write_address <= read_counter-1;
-                     A_write_data_in <= S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                   
+                     A_write_en = 1;
+                     A_write_address = read_counter-1;
+                     A_write_data_in = S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                   
                 end
             else if (read_counter <= NUMBER_OF_INPUT_WORDS)
                 begin
                      //Fill in B Matrix
-                     B_write_en <= 1;
-                     B_write_address <= (read_counter-1 - NUMBER_OF_INPUT_WORDS_A);
-                     B_write_data_in <= S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                 
+                     B_write_en = 1;
+                     B_write_address = (read_counter-1 - NUMBER_OF_INPUT_WORDS_A);
+                     B_write_data_in = S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                 
                 end
             
             else if (read_counter > NUMBER_OF_INPUT_WORDS)
                 begin
-                    S_AXIS_TREADY   <= 0;
-                    read_counter_en   <= 0;
-                    read_counter_rst   <= 1;
-                    A_write_en <= 0;
-                    B_write_en <= 0;
+                    S_AXIS_TREADY   = 0;
+                    read_counter_en   = 0;
+                    read_counter_rst   = 1;
+                    A_write_en = 0;
+                    B_write_en = 0;
                     state <= Compute;
 
                 end
@@ -263,18 +263,18 @@ module myip_v1_0
           
           //Wait for the calculation to be done and then transition to Write outputs
           if (!Done) begin
-             state <= Compute;
-             Start <=1;
+             state = Compute;
+             Start =1;
              
           end 
           else begin
              
-             state <= Write_Outputs;
-             Start <=0;
-             RES_read_en <= 1;
+             state = Write_Outputs;
+             Start =0;
+             RES_read_en = 1;
 //             RES_write_en <= 0;
-             RES_read_address <= write_counter;
-             write_counter_en <=1;
+             RES_read_address = write_counter;
+             write_counter_en =1;
              
           end
           
@@ -287,16 +287,16 @@ module myip_v1_0
         Assign_Address:
           begin
 //              write_counter  <= write_counter + 1;
-              RES_read_address <= write_counter;
+              RES_read_address = write_counter;
               
-              state <= Send_Address;
+              state = Send_Address;
           end
           
          Send_Address:
           begin
-              RES_read_address <= write_counter;
+              RES_read_address = write_counter;
               
-              state <= Write_Outputs;
+              state = Write_Outputs;
           end
           
         Write_Outputs:
@@ -306,18 +306,18 @@ module myip_v1_0
           if (M_AXIS_TREADY == 1) 
           begin
               // M_AXIS_TLAST, though optional in AXIS, is necessary in practice as AXI Stream FIFO and AXI DMA expects it.
-                M_AXIS_TDATA  <= RES_read_data_out;
-                RES_read_en <= 1;
-                RES_read_address <= write_counter;
+                M_AXIS_TDATA  = RES_read_data_out;
+                RES_read_en = 1;
+                RES_read_address = write_counter;
                 
 //                        state <= Assign_Address;
-                M_AXIS_TVALID  <= 1;                        
+                M_AXIS_TVALID  = 1;                        
             if (write_counter >= NUMBER_OF_OUTPUT_WORDS+1)
             begin
-              state  <= Idle;
-              M_AXIS_TLAST  <= 1;
-              write_counter_en   <=0;
-              write_counter_rst  <=1;
+              state  = Idle;
+              M_AXIS_TLAST  = 1;
+              write_counter_en   =0;
+              write_counter_rst  =1;
             end
           end
 
