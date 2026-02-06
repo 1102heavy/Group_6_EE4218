@@ -126,8 +126,8 @@ module myip_v1_0
   localparam Send_Address = 6'b000010;
   localparam Write_Outputs  = 5'b000001;
 
-  reg [5:0] state = 6'b100000;
-  reg [5:0] prev_state = 6'b100000;
+  reg [5:0] next_state = 6'b100000;
+  reg [5:0] current_state = 6'b100000;
   reg [1:0] read_counter_en =0;
   reg [1:0] write_counter_en=0;
   reg [1:0] read_counter_rst =0;
@@ -147,7 +147,7 @@ module myip_v1_0
    // consistent with the sequence they are written and read in the driver's hw_acc.c file
   always @(posedge ACLK) 
   begin
-    prev_state<=state;
+    current_state <= next_state;
     if(read_counter_en==1)
     begin
         read_counter <= read_counter+1;
@@ -176,7 +176,68 @@ module myip_v1_0
     
   end
   
-  always @(*) 
+  always @(*) // state
+  begin
+  // implemented as a single-always Moore machine
+  // a Mealy machine that asserts S_AXIS_TREADY and captures S_AXIS_TDATA etc can save a clock cycle
+  
+  /****** Synchronous reset (active low) ******/
+    if (!ARESETN)
+    begin
+      // CAUTION: make sure your reset polarity is consistent with the system reset polarity
+      next_state        <= Idle;
+    end
+    else
+    begin
+      case (current_state)
+        Idle:
+        begin
+          if (S_AXIS_TVALID == 1)
+          begin
+            next_state         = Read_Inputs;
+          end
+        end
+
+        Read_Inputs:
+        begin      
+            if (read_counter > NUMBER_OF_INPUT_WORDS)
+                begin
+                    next_state <= Compute;
+                end
+        end
+        Compute:
+        begin
+          // Coprocessor function to be implemented (matrix multiply) should be here. Right now, nothing happens here.
+          //Wait for the calculation to be done and then transition to Write outputs
+          if (!Done) begin
+             next_state = Compute;
+          end 
+          else begin    
+             next_state = Write_Outputs; 
+          end
+          // Possible to save a cycle by asserting M_AXIS_TVALID and presenting M_AXIS_TDATA just before going into 
+          // Write_Outputs state. However, need to adjust write_counter limits accordingly
+          // Alternatively, M_AXIS_TVALID and M_AXIS_TDATA can be asserted combinationally to save a cycle.
+        end
+
+          
+        Write_Outputs:
+        begin
+          // Coprocessor function (adding 1 to sum in each iteration = adding iteration count to sum) happens here (partly)
+          if (M_AXIS_TREADY == 1) 
+          begin
+             
+            if (write_counter >= NUMBER_OF_OUTPUT_WORDS+1)
+            begin
+              next_state  = Idle;
+            end
+          end
+        end
+      endcase
+    end
+    end
+    
+always @(*) 
   begin
      
   // implemented as a single-always Moore machine
@@ -186,35 +247,24 @@ module myip_v1_0
     if (!ARESETN)
     begin
       // CAUTION: make sure your reset polarity is consistent with the system reset polarity
-      state        <= Idle;
+      next_state        <= Idle;
     end
     else
     begin
-      case (prev_state)
-
+      case (current_state)
         Idle:
         begin
-            
           M_AXIS_TVALID   = 0;
           M_AXIS_TLAST    = 0;
           if (S_AXIS_TVALID == 1)
           begin
-            state         = Read_Inputs;
             S_AXIS_TREADY   = 1; 
             read_counter_en=1;
-            // start receiving data once you go into Read_Inputs
           end
-
         end
 
         Read_Inputs:
         begin
-        
-          
-          
-          if (S_AXIS_TVALID == 1) //if (S_AXIS_TVALID && S_AXIS_TREADY)
-          begin
-              
 //             If we are expecting a variable number of words, we should make use of S_AXIS_TLAST.
 //             Since the number of words we are expecting is fixed, we simply count and receive 
 //             the expected number (NUMBER_OF_INPUT_WORDS) instead.
@@ -222,7 +272,6 @@ module myip_v1_0
 //                        start Receiving data
 //                        Starting with A then B                                                          
 //                        First 2**3 words correspond to A then next 2**2 can correspond to B in row major order
-            
             if (read_counter <= NUMBER_OF_INPUT_WORDS_A)
                 begin
                       //Fill in A matrix
@@ -245,63 +294,31 @@ module myip_v1_0
                     read_counter_rst   = 1;
                     A_write_en = 0;
                     B_write_en = 0;
-                    state <= Compute;
-
                 end
-          end
-                            
         end
         
-
-            
         Compute:
         begin
-            
           // Coprocessor function to be implemented (matrix multiply) should be here. Right now, nothing happens here.
-          
-            
-          
           //Wait for the calculation to be done and then transition to Write outputs
           if (!Done) begin
-             state = Compute;
              Start =1;
-             
           end 
           else begin
-             
-             state = Write_Outputs;
              Start =0;
              RES_read_en = 1;
 //             RES_write_en <= 0;
              RES_read_address = write_counter;
              write_counter_en =1;
-             
           end
-          
           // Possible to save a cycle by asserting M_AXIS_TVALID and presenting M_AXIS_TDATA just before going into 
           // Write_Outputs state. However, need to adjust write_counter limits accordingly
           // Alternatively, M_AXIS_TVALID and M_AXIS_TDATA can be asserted combinationally to save a cycle.
- 
         end
-        
-        Assign_Address:
-          begin
-//              write_counter  <= write_counter + 1;
-              RES_read_address = write_counter;
-              
-              state = Send_Address;
-          end
-          
-         Send_Address:
-          begin
-              RES_read_address = write_counter;
-              
-              state = Write_Outputs;
-          end
+
           
         Write_Outputs:
         begin
-
           // Coprocessor function (adding 1 to sum in each iteration = adding iteration count to sum) happens here (partly)
           if (M_AXIS_TREADY == 1) 
           begin
@@ -314,16 +331,15 @@ module myip_v1_0
                 M_AXIS_TVALID  = 1;                        
             if (write_counter >= NUMBER_OF_OUTPUT_WORDS+1)
             begin
-              state  = Idle;
               M_AXIS_TLAST  = 1;
               write_counter_en   =0;
               write_counter_rst  =1;
             end
           end
-
         end
       endcase
     end
+    
   end
      
   // Connection to sub-modules / components for assignment 1

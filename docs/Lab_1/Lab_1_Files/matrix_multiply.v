@@ -72,15 +72,15 @@ module matrix_multiply
 	localparam DONE = 6'b000001;
 	localparam Wait = 6'b000000;
 	
-    reg [5:0] state = 6'b100000;
-    reg [5:0] prev_state = 6'b100000;
+    reg [5:0] next_state = 6'b100000;
+    reg [5:0] current_state = 6'b100000;
     reg [1:0] acc_reset = 0;
     reg [1:0] count_en = 0;
     
     
     always @(posedge clk) begin
   
-        prev_state<= state;
+        current_state<= next_state;
          
         
         
@@ -104,15 +104,15 @@ module matrix_multiply
        
     end
     
-    always @(*) begin        
-        case (prev_state)        
+    always @(*) begin    // output    
+        case (current_state)        
             Idle: begin  
                 
                 if (!Start) begin
-                    state = Idle;
+                    next_state = Idle;
                 end
                 else begin
-                    state = Read_Inputs;
+                    next_state = Read_Inputs;
                 end
             end
             
@@ -131,12 +131,12 @@ module matrix_multiply
                A_read_en = 1;
                B_read_en = 1;
                count_en =0;
-               state = Compute;
+               next_state = Compute;
             end
             
             Compute: begin
                 //Address is being sent
-                state = Sum;
+                next_state = Sum;
                 product = (A_read_data_out * B_read_data_out);
                 count_en =1;
 
@@ -147,14 +147,13 @@ module matrix_multiply
 
                 //Check if one row of calculation is done
                 if(k==A_COLS) begin
-                    state= Write_Outputs;
+                    next_state= Write_Outputs;
                 end
                 else begin
                 
-                    state = Read_Inputs;
+                    next_state = Read_Inputs;
                 end     
             end
-
             
             Write_Outputs: begin
                 RES_write_address = r;
@@ -164,10 +163,10 @@ module matrix_multiply
                 
                 
                 if(r==A_ROWS-1) begin
-                   state = DONE;
+                   next_state = DONE;
                 end 
                 else begin
-                    state = Read_Inputs;
+                    next_state = Read_Inputs;
                 end
             
        
@@ -176,7 +175,7 @@ module matrix_multiply
             DONE: begin
                 Done = 1;
                 RES_write_en =0;
-                state = Idle;
+                next_state = Idle;
             end
             
             
@@ -184,6 +183,7 @@ module matrix_multiply
 
     
     end
+
 
 endmodule
 
