@@ -60,8 +60,8 @@ module matrix_multiply
     localparam ROWSIZE = (1 << B_depth_bits); //Logic: Column number for B matrix is 1. This is the ROWSIZE OF B
     reg [$clog2(A_COLS):0] k = 0; //Row of B = Column of A
     reg [$clog2(A_ROWS):0] r = 0;
-    reg [17:0 ]accumulator=0;
-    reg [17:0 ]product=0;
+    reg [15:0 ]accumulator=0;
+    reg [15:0 ]product=0;
     
 	// Define the states of state machine (one hot encoding)
 	localparam Idle  = 6'b100000;
@@ -70,12 +70,11 @@ module matrix_multiply
 	localparam Sum = 6'b000100;
 	localparam Write_Outputs  = 6'b000010;
 	localparam DONE = 6'b000001;
-	localparam Wait = 6'b000000;
 	
     reg [5:0] next_state = 6'b100000;
     reg [5:0] current_state = 6'b100000;
-    reg [1:0] acc_reset = 0;
-    reg [1:0] count_en = 0;
+    reg acc_reset = 0;
+    reg count_en = 0;
     
     
     always @(posedge clk) begin
@@ -86,7 +85,6 @@ module matrix_multiply
         
         if(acc_reset == 1)begin
             accumulator <= 0;
-            acc_reset <=0;
             k<=0; 
             if(r==A_ROWS-1) begin
                 r<=0;
@@ -96,7 +94,7 @@ module matrix_multiply
             end
         end
         else if(count_en==1) begin
-            accumulator=accumulator+product;
+            accumulator<=accumulator+product;
             k<=k+1;
 
         end
@@ -104,16 +102,55 @@ module matrix_multiply
        
     end
     
-    always @(*) begin    // output    
+    always @(*) begin    // output   
+        acc_reset =0;
+        RES_write_en = 0;
+        RES_write_address = 0;
+        RES_write_data_in = 0;
+        
+        A_read_address = 0;
+        B_read_address = 0;
+        A_read_en = 0;
+        B_read_en = 0;
+        count_en =0;
+        
+        product = 0;
+        
+        RES_write_address = 0;
+        RES_write_en = 0;
+        RES_write_data_in = 0;
+        acc_reset =0;
+        
+        Done = 0; 
+        next_state = Idle;
         case (current_state)        
             Idle: begin  
+                acc_reset =0;
+                RES_write_en = 0;
+                RES_write_address = 0;
+                RES_write_data_in = 0;
+                
+                A_read_address = 0;
+                B_read_address = 0;
+                A_read_en = 0;
+                B_read_en = 0;
+                count_en =0;
+                
+                product = 0;
+                
+                RES_write_address = 0;
+                RES_write_en = 0;
+                RES_write_data_in = 0;
+                acc_reset =0;
+                
+                Done = 0;
                 
                 if (!Start) begin
                     next_state = Idle;
                 end
                 else begin
                     next_state = Read_Inputs;
-                end
+                end     
             end
             
             Read_Inputs: begin
@@ -121,29 +158,78 @@ module matrix_multiply
             
 //               Reset RES parameters
 
-               acc_reset =0;
-               RES_write_en = 0;
-               RES_write_address = 0;
-               RES_write_data_in = 0;
+                acc_reset =0;
+                RES_write_en = 0;
+                RES_write_address = 0;
+                RES_write_data_in = 0;
                 
-               A_read_address = A_COLS * r + k;
-               B_read_address = k;
-               A_read_en = 1;
-               B_read_en = 1;
-               count_en =0;
-               next_state = Compute;
+                A_read_address = A_COLS * r + k;
+                B_read_address = k;
+                A_read_en = 1;
+                B_read_en = 1;
+                count_en =0;
+                
+                product = 0;
+                
+                RES_write_address = 0;
+                RES_write_en = 0;
+                RES_write_data_in = 0;
+                acc_reset =0;
+                
+                Done = 0;
+
+          
+                next_state = Compute;
             end
             
             Compute: begin
                 //Address is being sent
-                next_state = Sum;
-                product = (A_read_data_out * B_read_data_out);
+                acc_reset =0;
+                RES_write_en = 0;
+                RES_write_address = 0;
+                RES_write_data_in = 0;
+                
+                A_read_address = A_COLS * r + k;
+                B_read_address = k;
+                A_read_en = 1;
+                B_read_en = 1;
                 count_en =1;
+                
+                product = (A_read_data_out * B_read_data_out);
+                
+                RES_write_address = 0;
+                RES_write_en = 0;
+                RES_write_data_in = 0;
+                acc_reset =0;
+                
+                Done = 0;
+                
+
+                
+                next_state = Sum;
 
             end
             
             Sum: begin
+                acc_reset =0;
+                RES_write_en = 0;
+                RES_write_address = 0;
+                RES_write_data_in = 0;
+                
+                A_read_address = A_COLS * r + k;
+                B_read_address = k;
+                A_read_en = 1;
+                B_read_en = 1;
                 count_en =0;
+                
+                product = 0;
+                
+                RES_write_address = 0;
+                RES_write_en = 0;
+                RES_write_data_in = 0;
+                acc_reset =0;
+                
+                Done = 0;
 
                 //Check if one row of calculation is done
                 if(k==A_COLS) begin
@@ -156,10 +242,24 @@ module matrix_multiply
             end
             
             Write_Outputs: begin
+                acc_reset =0;
+                RES_write_en = 0;
+                RES_write_address = 0;
+                RES_write_data_in = 0;
+                
+                A_read_address = A_COLS * r + k;
+                B_read_address = k;
+                A_read_en = 1;
+                B_read_en = 1;
+                count_en =0;
+                
+                product = 0;
                 RES_write_address = r;
                 RES_write_en = 1;
-                RES_write_data_in = accumulator>>8;
+                RES_write_data_in = accumulator[15:8];
                 acc_reset =1;
+                
+                Done = 0;
                 
                 
                 if(r==A_ROWS-1) begin
@@ -173,16 +273,37 @@ module matrix_multiply
             end
             
             DONE: begin
+                acc_reset =0;
+                RES_write_en = 0;
+                RES_write_address = 0;
+                RES_write_data_in = 0;
+                
+                A_read_address = 0;
+                B_read_address = 0;
+                A_read_en = 0;
+                B_read_en = 0;
+                count_en =0;
+                
+                product = 0;
+                
+                RES_write_address = 0;
+                RES_write_en = 0;
+                RES_write_data_in = 0;
+                acc_reset =0;
+                
                 Done = 1;
-                RES_write_en =0;
                 next_state = Idle;
             end
+            
+            default: next_state = Idle;
             
             
         endcase
 
     
     end
+
+
 
 
 endmodule

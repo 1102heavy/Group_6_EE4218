@@ -43,7 +43,7 @@ module myip_v1_0
     M_AXIS_TVALID,
     M_AXIS_TDATA,
     M_AXIS_TLAST,
-    M_AXIS_TREADY,
+    M_AXIS_TREADY
 
     // DO NOT EDIT ABOVE THIS LINE ////////////////////
   );
@@ -119,19 +119,17 @@ module myip_v1_0
   localparam NUMBER_OF_OUTPUT_WORDS = (1 << RES_depth_bits); // 2**RES_depth_bits = 2 for assignment 1
 
   // Define the states of state machine (one hot encoding)
-  localparam Idle  = 6'b100000;
-  localparam Read_Inputs = 6'b010000;
-  localparam Compute = 6'b001000;
-  localparam Assign_Address = 6'b000100;
-  localparam Send_Address = 6'b000010;
-  localparam Write_Outputs  = 5'b000001;
+  localparam Idle  = 4'b1000;
+  localparam Read_Inputs = 4'b0100;
+  localparam Compute = 4'b0010;
+  localparam Write_Outputs  = 4'b0001;
 
-  reg [5:0] next_state = 6'b100000;
-  reg [5:0] current_state = 6'b100000;
-  reg [1:0] read_counter_en =0;
-  reg [1:0] write_counter_en=0;
-  reg [1:0] read_counter_rst =0;
-  reg [1:0] write_counter_rst=0;
+  reg [3:0] next_state = 4'b1000;
+  reg [3:0] current_state = 4'b1000;
+  reg read_counter_en =0;
+  reg write_counter_en=0;
+  reg read_counter_rst =0;
+  reg write_counter_rst=0;
 
 
   // Accumulator to hold sum of inputs read at any point in time
@@ -157,7 +155,7 @@ module myip_v1_0
     if(read_counter_rst==1)
     begin
         read_counter <= 0;
-        read_counter_rst <= 0;
+//        read_counter_rst <= 0;
 //        read_counter_en<=0;
     end
     
@@ -170,7 +168,7 @@ module myip_v1_0
     if(write_counter_rst==1)
     begin
         write_counter <= 0;
-        write_counter_rst <= 0;
+//        write_counter_rst <= 0;
 //        read_counter_en<=0;
     end
     
@@ -185,10 +183,12 @@ module myip_v1_0
     if (!ARESETN)
     begin
       // CAUTION: make sure your reset polarity is consistent with the system reset polarity
-      next_state        <= Idle;
+      next_state        = Idle;
     end
     else
     begin
+      next_state        = Idle;
+      
       case (current_state)
         Idle:
         begin
@@ -196,14 +196,20 @@ module myip_v1_0
           begin
             next_state         = Read_Inputs;
           end
+          else begin
+            next_state = Idle;
+          end
         end
 
         Read_Inputs:
         begin      
             if (read_counter > NUMBER_OF_INPUT_WORDS)
                 begin
-                    next_state <= Compute;
+                    next_state = Compute;
                 end
+            else begin
+                next_state = Read_Inputs;
+            end
         end
         Compute:
         begin
@@ -231,8 +237,12 @@ module myip_v1_0
             begin
               next_state  = Idle;
             end
+            else begin
+                next_state = Write_Outputs;
+            end
           end
         end
+        default: next_state = Idle;
       endcase
     end
  end
@@ -244,18 +254,64 @@ always @(*) // outputs
   // a Mealy machine that asserts S_AXIS_TREADY and captures S_AXIS_TDATA etc can save a clock cycle
   
   /****** Synchronous reset (active low) ******/
-    if (!ARESETN)
-    begin
-      // CAUTION: make sure your reset polarity is consistent with the system reset polarity
-      next_state        <= Idle;
-    end
-    else
-    begin
+//    if (!ARESETN)
+//    begin
+//      // CAUTION: make sure your reset polarity is consistent with the system reset polarity
+//      next_state        = Idle;
+//    end
+//    else
+//    begin
+      M_AXIS_TDATA  =0;
+      M_AXIS_TVALID   = 0;
+      M_AXIS_TLAST    = 0;
+      S_AXIS_TREADY   = 0; 
+      
+      write_counter_en   =0;
+      write_counter_rst  =0;
+      
+      read_counter_en=0;
+      read_counter_rst   = 0;
+         
+      A_write_en = 0;
+      A_write_address =0;
+      A_write_data_in = 0;
+        
+      B_write_en = 0;
+      B_write_address = 0;
+      B_write_data_in = 0; //Discard rest of the 32 bits   
+      
+      RES_read_en = 0;
+      RES_read_address = 0;
+      
+      Start = 0;
+      
       case (current_state)
         Idle:
         begin
+          M_AXIS_TDATA  =0;
           M_AXIS_TVALID   = 0;
           M_AXIS_TLAST    = 0;
+          S_AXIS_TREADY   = 0; 
+          
+          write_counter_en   =0;
+          write_counter_rst  =0;
+          
+          read_counter_en=0;
+          read_counter_rst   = 0;
+             
+          A_write_en = 0;
+          A_write_address =0;
+          A_write_data_in = 0;
+            
+          B_write_en = 0;
+          B_write_address = 0;
+          B_write_data_in = 0; //Discard rest of the 32 bits   
+          
+          RES_read_en = 0;
+          RES_read_address = 0;
+          
+          Start = 0;
+          
           if (S_AXIS_TVALID == 1)
           begin
             S_AXIS_TREADY   = 1; 
@@ -265,6 +321,29 @@ always @(*) // outputs
 
         Read_Inputs:
         begin
+            M_AXIS_TDATA  =0;
+            M_AXIS_TVALID   = 0;
+            M_AXIS_TLAST    = 0;
+            S_AXIS_TREADY   = 1; 
+            
+            write_counter_en   =0;
+            write_counter_rst  =0;
+            
+            read_counter_en=1;
+            read_counter_rst   = 0;
+            
+            A_write_en = 0;
+            A_write_address =0;
+            A_write_data_in = 0;
+            
+            B_write_en = 0;
+            B_write_address = 0;
+            B_write_data_in = 0; //Discard rest of the 32 bits   
+            
+            RES_read_en = 0;
+            RES_read_address = 0;
+            
+            Start = 0;
 //             If we are expecting a variable number of words, we should make use of S_AXIS_TLAST.
 //             Since the number of words we are expecting is fixed, we simply count and receive 
 //             the expected number (NUMBER_OF_INPUT_WORDS) instead.
@@ -274,73 +353,125 @@ always @(*) // outputs
 //                        First 2**3 words correspond to A then next 2**2 can correspond to B in row major order
             if (read_counter <= NUMBER_OF_INPUT_WORDS_A)
                 begin
+                                        
+                    A_write_en = 1;
+                    A_write_address = read_counter-1;
+                    A_write_data_in = S_AXIS_TDATA [7:0];
+
                       //Fill in A matrix
-                     A_write_en = 1;
-                     A_write_address = read_counter-1;
-                     A_write_data_in = S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                   
+
                 end
             else if (read_counter <= NUMBER_OF_INPUT_WORDS)
-                begin
-                     //Fill in B Matrix
-                     B_write_en = 1;
-                     B_write_address = (read_counter-1 - NUMBER_OF_INPUT_WORDS_A);
-                     B_write_data_in = S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits                                                                 
+                begin                    
+                    B_write_en = 1;
+                    B_write_address = (read_counter-1 - NUMBER_OF_INPUT_WORDS_A);
+                    B_write_data_in = S_AXIS_TDATA [7:0]; //Discard rest of the 32 bits   
+                    
+                
                 end
             
             else if (read_counter > NUMBER_OF_INPUT_WORDS)
                 begin
                     S_AXIS_TREADY   = 0;
-                    read_counter_en   = 0;
                     read_counter_rst   = 1;
-                    A_write_en = 0;
-                    B_write_en = 0;
+                                                               
+
                 end
         end
         
         Compute:
         begin
-          // Coprocessor function to be implemented (matrix multiply) should be here. Right now, nothing happens here.
-          //Wait for the calculation to be done and then transition to Write outputs
-          if (!Done) begin
-             Start =1;
-          end 
-          else begin
-             Start =0;
-             RES_read_en = 1;
-//             RES_write_en <= 0;
-             RES_read_address = write_counter;
-             write_counter_en =1;
-          end
-          // Possible to save a cycle by asserting M_AXIS_TVALID and presenting M_AXIS_TDATA just before going into 
-          // Write_Outputs state. However, need to adjust write_counter limits accordingly
-          // Alternatively, M_AXIS_TVALID and M_AXIS_TDATA can be asserted combinationally to save a cycle.
-        end
-
+            M_AXIS_TDATA  =0;
+            M_AXIS_TVALID   = 0;
+            M_AXIS_TLAST    = 0;
+            S_AXIS_TREADY   = 0; 
+            
+            write_counter_en   =0;
+            write_counter_rst  =0;
+            
+            read_counter_en=0;
+            read_counter_rst   = 0;
+            
+            A_write_en = 0;
+            A_write_address =0;
+            A_write_data_in = 0;
+            
+            B_write_en = 0;
+            B_write_address = 0;
+            B_write_data_in = 0; //Discard rest of the 32 bits   
+            
+            RES_read_en = 0;
+            RES_read_address = 0;
+            
+            Start = 0;
+            // Coprocessor function to be implemented (matrix multiply) should be here. Right now, nothing happens here.
+            //Wait for the calculation to be done and then transition to Write outputs
+            if (!Done) begin
+                Start =1;
+            end 
+            else begin
+                RES_read_en = 1;
+                //             RES_write_en <= 0;
+                RES_read_address = write_counter;
+                write_counter_en =1;
+            end
+            // Possible to save a cycle by asserting M_AXIS_TVALID and presenting M_AXIS_TDATA just before going into 
+            // Write_Outputs state. However, need to adjust write_counter limits accordingly
+            // Alternatively, M_AXIS_TVALID and M_AXIS_TDATA can be asserted combinationally to save a cycle.
+            end
+            
           
         Write_Outputs:
         begin
+            M_AXIS_TDATA  =0;
+            M_AXIS_TVALID   = 0;
+            M_AXIS_TLAST    = 0;
+            S_AXIS_TREADY   = 0; 
+            
+            write_counter_en   =0;
+            write_counter_rst  =0;
+            
+            read_counter_en=0;
+            read_counter_rst   = 0;
+            
+            A_write_en = 0;
+            A_write_address =0;
+            A_write_data_in = 0;
+            
+            B_write_en = 0;
+            B_write_address = 0;
+            B_write_data_in = 0; //Discard rest of the 32 bits   
+            
+            RES_read_en = 0;
+            RES_read_address = 0;
+            
+            Start = 0;
           // Coprocessor function (adding 1 to sum in each iteration = adding iteration count to sum) happens here (partly)
-          if (M_AXIS_TREADY == 1) 
-          begin
-              // M_AXIS_TLAST, though optional in AXIS, is necessary in practice as AXI Stream FIFO and AXI DMA expects it.
+            if (M_AXIS_TREADY == 1) 
+            begin
+                  // M_AXIS_TLAST, though optional in AXIS, is necessary in practice as AXI Stream FIFO and AXI DMA expects it.
                 M_AXIS_TDATA  = RES_read_data_out;
                 RES_read_en = 1;
                 RES_read_address = write_counter;
-                
-//                        state <= Assign_Address;
                 M_AXIS_TVALID  = 1;                        
-            if (write_counter >= NUMBER_OF_OUTPUT_WORDS+1)
-            begin
-              M_AXIS_TLAST  = 1;
-              write_counter_en   =0;
-              write_counter_rst  =1;
+                if (write_counter >= NUMBER_OF_OUTPUT_WORDS+1)
+                begin
+                    M_AXIS_TLAST  = 1;
+                    write_counter_en   =0;
+                    write_counter_rst  =1;
+                end
+                else begin
+                    M_AXIS_TLAST  = 0;
+                    write_counter_en   =1;
+                    write_counter_rst  =0;
+                end
             end
-          end
+
         end
       endcase
     end
     
-  end
+//  end
      
   // Connection to sub-modules / components for assignment 1
   
