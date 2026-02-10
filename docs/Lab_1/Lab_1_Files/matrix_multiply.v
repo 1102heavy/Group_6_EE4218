@@ -125,10 +125,7 @@ module matrix_multiply
         next_state = Idle;
         case (current_state)        
             Idle: begin  
-                acc_reset =0;
-                RES_write_en = 0;
-                RES_write_address = 0;
-                RES_write_data_in = 0;
+
                 
                 A_read_address = 0;
                 B_read_address = 0;
@@ -158,10 +155,6 @@ module matrix_multiply
             
 //               Reset RES parameters
 
-                acc_reset =0;
-                RES_write_en = 0;
-                RES_write_address = 0;
-                RES_write_data_in = 0;
                 
                 A_read_address = A_COLS * r + k;
                 B_read_address = k;
@@ -184,10 +177,6 @@ module matrix_multiply
             
             Compute: begin
                 //Address is being sent
-                acc_reset =0;
-                RES_write_en = 0;
-                RES_write_address = 0;
-                RES_write_data_in = 0;
                 
                 A_read_address = A_COLS * r + k;
                 B_read_address = k;
@@ -211,10 +200,7 @@ module matrix_multiply
             end
             
             Sum: begin
-                acc_reset =0;
-                RES_write_en = 0;
-                RES_write_address = 0;
-                RES_write_data_in = 0;
+               
                 
                 A_read_address = A_COLS * r + k;
                 B_read_address = k;
@@ -242,10 +228,6 @@ module matrix_multiply
             end
             
             Write_Outputs: begin
-                acc_reset =0;
-                RES_write_en = 0;
-                RES_write_address = 0;
-                RES_write_data_in = 0;
                 
                 A_read_address = A_COLS * r + k;
                 B_read_address = k;
@@ -273,10 +255,6 @@ module matrix_multiply
             end
             
             DONE: begin
-                acc_reset =0;
-                RES_write_en = 0;
-                RES_write_address = 0;
-                RES_write_data_in = 0;
                 
                 A_read_address = 0;
                 B_read_address = 0;
