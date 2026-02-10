@@ -76,14 +76,14 @@ module myip_v1_0
 
 // RAM parameters for assignment 1
 //test 1
-//  localparam A_depth_bits = 3;    // 8 elements (A is a 2x4 matrix)
-//  localparam B_depth_bits = 2;   // 4 elements (B is a 4x1 matrix)
-//  localparam RES_depth_bits = 1;  // 2 elements (RES is a 2x1 matrix)
+  localparam A_depth_bits = 3;    // 8 elements (A is a 2x4 matrix)
+  localparam B_depth_bits = 2;   // 4 elements (B is a 4x1 matrix)
+  localparam RES_depth_bits = 1;  // 2 elements (RES is a 2x1 matrix)
 
 // test 2  
-    localparam A_depth_bits   = 5;   // 32 elements (A is 4x8)
-    localparam B_depth_bits   = 3;   // 8 elements  (B is 8x1)
-    localparam RES_depth_bits = 2;   // 4 elements  (RES is 4x1)
+//    localparam A_depth_bits   = 5;   // 32 elements (A is 4x8)
+//    localparam B_depth_bits   = 3;   // 8 elements  (B is 8x1)
+//    localparam RES_depth_bits = 2;   // 4 elements  (RES is 4x1)
 
 
   localparam width = 8;      // all 8-bit data
@@ -191,7 +191,7 @@ module myip_v1_0
     if (!ARESETN)
     begin
       // CAUTION: make sure your reset polarity is consistent with the system reset polarity
-      next_state        = Idle;
+    next_state        = Idle;
     end
     else
     begin
@@ -248,6 +248,9 @@ module myip_v1_0
             else begin
                 next_state = Write_Outputs;
             end
+          end
+          else begin
+              next_state = Write_Outputs;
           end
         end
         default: next_state = Idle;
