@@ -64,15 +64,15 @@ module matrix_multiply
     reg [15:0 ]product=0;
     
 	// Define the states of state machine (one hot encoding)
-	localparam Idle  = 6'b100000;
-	localparam Read_Inputs = 6'b010000;
-	localparam Compute = 6'b001000;
-	localparam Sum = 6'b000100;
-	localparam Write_Outputs  = 6'b000010;
-	localparam DONE = 6'b000001;
+	localparam Idle  = 5'b10000;
+	localparam Read_Inputs = 5'b01000;
+	localparam Compute = 5'b00100;
+//	localparam Sum = 6'b000100;
+	localparam Write_Outputs  = 5'b00010;
+	localparam DONE = 5'b00001;
 	
-    reg [5:0] next_state = 6'b100000;
-    reg [5:0] current_state = 6'b100000;
+    reg [5:0] next_state = 5'b10000;
+    reg [5:0] current_state = 5'b10000;
     reg acc_reset = 0;
     reg count_en = 0;
     
@@ -170,9 +170,16 @@ module matrix_multiply
                 acc_reset =0;
                 
                 Done = 0;
+                if(k==A_COLS) begin
+                    next_state= Write_Outputs;
+                end
+                else begin
+                
+                    next_state = Compute;
+                end 
 
           
-                next_state = Compute;
+//                next_state = Compute;
             end
             
             Compute: begin
@@ -193,39 +200,39 @@ module matrix_multiply
                 
                 Done = 0;
                 
-
+                next_state = Read_Inputs;
                 
-                next_state = Sum;
+//                next_state = Sum;
 
             end
             
-            Sum: begin
+//            Sum: begin
                
                 
-                A_read_address = A_COLS * r + k;
-                B_read_address = k;
-                A_read_en = 1;
-                B_read_en = 1;
-                count_en =0;
+//                A_read_address = A_COLS * r + k;
+//                B_read_address = k;
+//                A_read_en = 1;
+//                B_read_en = 1;
+//                count_en =0;
                 
-                product = 0;
+//                product = 0;
                 
-                RES_write_address = 0;
-                RES_write_en = 0;
-                RES_write_data_in = 0;
-                acc_reset =0;
+//                RES_write_address = 0;
+//                RES_write_en = 0;
+//                RES_write_data_in = 0;
+//                acc_reset =0;
                 
-                Done = 0;
+//                Done = 0;
 
-                //Check if one row of calculation is done
-                if(k==A_COLS) begin
-                    next_state= Write_Outputs;
-                end
-                else begin
+//                //Check if one row of calculation is done
+//                if(k==A_COLS) begin
+//                    next_state= Write_Outputs;
+//                end
+//                else begin
                 
-                    next_state = Read_Inputs;
-                end     
-            end
+//                    next_state = Read_Inputs;
+//                end     
+//            end
             
             Write_Outputs: begin
                 
