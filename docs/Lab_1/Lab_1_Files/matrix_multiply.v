@@ -103,10 +103,6 @@ module matrix_multiply
     end
     
     always @(*) begin    // output   
-        acc_reset =0;
-        RES_write_en = 0;
-        RES_write_address = 0;
-        RES_write_data_in = 0;
         
         A_read_address = 0;
         B_read_address = 0;
