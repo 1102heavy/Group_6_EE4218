@@ -46,14 +46,14 @@ module tb_myip_v1_0(
                 .M_AXIS_TREADY(M_AXIS_TREADY)
 	);
 	//test 1
-//	localparam NUMBER_OF_INPUT_WORDS  = 12;  // length of an input vector test 1: 12, test 2: 40
-//	localparam NUMBER_OF_OUTPUT_WORDS  = 2;  // length of an input vector test1: 2 test 2: 4
-//	localparam NUMBER_OF_TEST_VECTORS  = 2;  // number of such test vectors (cases)
+	localparam NUMBER_OF_INPUT_WORDS  = 12;  // length of an input vector test 1: 12, test 2: 40
+	localparam NUMBER_OF_OUTPUT_WORDS  = 2;  // length of an input vector test1: 2 test 2: 4
+	localparam NUMBER_OF_TEST_VECTORS  = 2;  // number of such test vectors (cases)
 	
 	//test 2
-	localparam NUMBER_OF_INPUT_WORDS  = 40;  // length of an input vector test 1: 12, test 2: 40
-	localparam NUMBER_OF_OUTPUT_WORDS  = 4;  // length of an input vector test1: 2 test 2: 4
-	localparam NUMBER_OF_TEST_VECTORS  = 2;  // number of such test vectors (cases)
+//	localparam NUMBER_OF_INPUT_WORDS  = 40;  // length of an input vector test 1: 12, test 2: 40
+//	localparam NUMBER_OF_OUTPUT_WORDS  = 4;  // length of an input vector test1: 2 test 2: 4
+//	localparam NUMBER_OF_TEST_VECTORS  = 2;  // number of such test vectors (cases)
 	
 	localparam width  = 8;  // width of an input vector
            
@@ -74,8 +74,8 @@ module tb_myip_v1_0(
            initial
            begin
                	$display("Loading Memory.");
-        		$readmemh("test2_input.mem", test_input_memory); // add the .mem file to the project or specify the complete path
-        		$readmemh("test2_result_expected.mem", test_result_expected_memory); // add the .mem file to the project or specify the complete path
+        		$readmemh("test_input.mem", test_input_memory); // add the .mem file to the project or specify the complete path
+        		$readmemh("test_result_expected.mem", test_result_expected_memory); // add the .mem file to the project or specify the complete path
         		$display("Loaded Memory.");
         		#25						// to make inputs and capture from testbench not aligned with clock edges
                	ARESETN = 1'b0; 		// apply reset (active low)
