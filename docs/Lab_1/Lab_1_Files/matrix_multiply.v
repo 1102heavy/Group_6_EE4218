@@ -71,8 +71,8 @@ module matrix_multiply
 	localparam Write_Outputs  = 5'b00010;
 	localparam DONE = 5'b00001;
 	
-    reg [5:0] next_state = 5'b10000;
-    reg [5:0] current_state = 5'b10000;
+    reg [4:0] next_state = 5'b10000;
+    reg [4:0] current_state = 5'b10000;
     reg acc_reset = 0;
     reg count_en = 0;
     
