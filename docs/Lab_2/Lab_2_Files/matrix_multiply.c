@@ -2,9 +2,10 @@
 
 // Main function: entry point for execution
 
+#define A_COLS = 4 
+#define A_ROWS = 2
 
-
-int matrix_multiply(int A_COLS, int A_ROWS, int A_Matrix[], int B_Matrix[],int result[]) {
+int matrix_multiply(int A_Matrix[], int B_Matrix[],int result[]) {
 
     for(int r= 0; r < A_ROWS; r++) {
         int sum = 0;
@@ -19,7 +20,7 @@ int matrix_multiply(int A_COLS, int A_ROWS, int A_Matrix[], int B_Matrix[],int r
 }
 
 int main() {
-    int A_COLS = 4, A_ROWS = 2;
+ 
     int A_Matrix[8] = {1, 2, 3, 4, 0, 0, 0, 0};
     int B_Matrix[4] = {5, 6, 7, 8};
     int result[2] = {0,0};
