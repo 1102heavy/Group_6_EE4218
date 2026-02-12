@@ -65,8 +65,8 @@
 
 #define CHAR_ESC		0x1b	/* 'ESC' character is used as terminator */
 
-#define A_COLS 4
-#define A_ROWS 2
+#define A_COLS 8
+#define A_ROWS 64
 /**************************** Type Definitions *****************************/
 
 /***************** Macros (Inline Functions) Definitions *******************/
@@ -169,18 +169,22 @@ int UartPsEchoExample(u32 UartBaseAddress)
 		while (!XUartPs_IsReceiveData(UartBaseAddress));
 		RecvChar = XUartPs_ReadReg(UartBaseAddress,
 							XUARTPS_FIFO_OFFSET);
-		if (CHAR_ESC == RecvChar) {
-			Running = FALSE;
-		}
-		if(counter<=A_COLS*A_ROWS){
+		// if (CHAR_ESC == RecvChar) {
+		// 	Running = FALSE;
+		// }
+		if(counter<A_COLS*A_ROWS){
 			A_Matrix[counter] = RecvChar;
-		} else if(counter<(1+A_COLS)*A_ROWS){
+			counter+=1;
+		} else if(counter<A_COLS*(A_ROWS+1)){
 			B_Matrix[counter-A_ROWS*A_COLS] = RecvChar;
-		}else{
-			// counter = 0;
+			counter+=1;
+		}
+		if(counter>=A_COLS*(A_ROWS+1)){
+			counter = 0;
+			
 			// for(int out_i =0;out_i<A_ROWS*A_COLS;out_i++){
 			// 	XUartPs_WriteReg(UartBaseAddress,  XUARTPS_FIFO_OFFSET,
-			// 		A_Matrix[out_i]);
+			// 		A_Matrix[out_i]*2);
 			// }
 			
 			for(int r= 0; r < A_ROWS; r++) {
@@ -190,7 +194,7 @@ int UartPsEchoExample(u32 UartBaseAddress)
 				
 					// Storing the result back in result array for demonstration
 				}
-				result[r] = sum;
+				result[r] = sum/256;
 			}
 			for(int out_i =0;out_i<A_ROWS;out_i++){
 				XUartPs_WriteReg(UartBaseAddress,  XUARTPS_FIFO_OFFSET,
@@ -198,7 +202,6 @@ int UartPsEchoExample(u32 UartBaseAddress)
 			}
 			
 		}
-		counter+=1;
 
 		// /* Change the capitalization */
 		// if (('a' <= RecvChar) && ('z' >= RecvChar)) {
