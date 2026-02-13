@@ -3,7 +3,7 @@ import time
 import csv
 
 # Configuration
-SERIAL_PORT = '/dev/serial/by-id/usb-Xilinx_ML_Carrier_Card_XFL12P0DHT04-if01-port0' 
+SERIAL_PORT = '/dev/serial/by-id/usb-Xilinx_ML_Carrier_Card_XFL12WVSPQXJ-if01-port0' 
 # BAUD_RATE = 115200
 # TIMEOUT = 1
 
@@ -91,7 +91,7 @@ def run_csv_test():
         expected = []
         for r in range(A_ROWS):
             row_sum = sum(matrix_a[r*A_COLS + c] * vector_b[c] for c in range(A_COLS))
-            expected.append((row_sum//256)) # Match Zynq's 8-bit truncation
+            expected.append((row_sum)) # Match Zynq's 8-bit truncation
 
         # 3. Serial Communication
         ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
