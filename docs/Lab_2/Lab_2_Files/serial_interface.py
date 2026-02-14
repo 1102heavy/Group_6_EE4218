@@ -52,6 +52,7 @@ def run_validated_test():
             else:
                 print("❌ ERROR: Mismatch detected.")
         else:
+            print(f"Expected: {expected}")
             print(f"❌ ERROR: Timeout. Expected {A_ROWS} bytes, got {len(raw_response)}")
 
         ser.close()
