@@ -10,6 +10,7 @@
 #include "xil_printf.h"
 #include <stdint.h>
 #include "xtmrctr.h"
+#include "matrix_data.h"
 
 
 #define TMR_NUM 0            // use Timer 0 inside the AXI Timer IP
@@ -87,11 +88,6 @@ uint8_t test2 = 0;
 
 
 /************************** Function Prototypes ******************************/
-#ifndef SDT
-int TmrCtrPolledExample(u16 DeviceId, u8 TmrCtrNumber);
-#else
-int TmrCtrPolledExample(UINTPTR BaseAddr, u8 TmrCtrNumber);
-#endif
 /************************** Variable Definitions *****************************/
 
 XTmrCtr TimerCounter; /* The instance of the Tmrctr Device */
@@ -139,7 +135,7 @@ u8 SendBuffer[TEST_BUFFER_SIZE];	/* Buffer for Transmitting Data */
 XLlFifo FifoInstance;
 
 u32 SourceBuffer[TOTAL_MATRIX_ELEMENTS] = {0};
-u32 DestinationBuffer[MAX_DATA_BUFFER_SIZE * WORD_SIZE];
+u32 DestinationBuffer[TOTAL_MATRIX_ELEMENTS];
 
 /*****************************************************************************/
 /**
@@ -159,36 +155,26 @@ u32 DestinationBuffer[MAX_DATA_BUFFER_SIZE * WORD_SIZE];
 ******************************************************************************/
 int main()
 {
-	xil_printf("beginning of programme\n\r");
+	//xil_printf("beginning of programme\n\r");
 	int Status1;
 	int Status2;
 
-// #ifndef SDT
-// 	xil_printf("Timer initialising1..,\n\r");
-//     Status2 = TmrCtrPolledExample(TMRCTR_DEVICE_ID, TIMER_COUNTER_0);
-// #else
-//     Status2 = TmrCtrPolledExample(XTMRCTR_BASEADDRESS, TIMER_COUNTER_0);
-// #endif
-//     if (Status2 != XST_SUCCESS) {
-//         xil_printf("Timer init failed\r\n");
-//         return XST_FAILURE;
-//     }
-//     xil_printf("Timer started\r\n");
+
 	
 	
 #ifndef SDT
-    xil_printf("Timer initialising1..,\n\r");
+    //xil_printf("Timer initialising1..,\n\r");
 	Status2 = XTmrCtr_Initialize(TmrCtrInstancePtr, TMRCTR_DEVICE_ID);
-	xil_printf("Timer initialisiation successful\n\r");
+	//xil_printf("Timer initialisiation successful\n\r");
 	XTmrCtr_SetOptions(TmrCtrInstancePtr, TIMER_COUNTER_0,
 			XTC_AUTO_RELOAD_OPTION);
     XTmrCtr_Start(TmrCtrInstancePtr,  TIMER_COUNTER_0);	
 	
 	Status1 = XLlFifoPollingExample(&FifoInstance, FIFO_DEV_ID, UART_BASEADDR);
 #else
-    xil_printf("Timer initialising1.1\n\r");
+    //xil_printf("Timer initialising1.1\n\r");
 	Status2 = XTmrCtr_Initialize(TmrCtrInstancePtr, XTMRCTR_BASEADDRESS);
-	xil_printf("Timer initialisiation successful\n\r");
+	//xil_printf("Timer initialisiation successful\n\r");
 	XTmrCtr_SetOptions(TmrCtrInstancePtr, TIMER_COUNTER_0,
 			XTC_AUTO_RELOAD_OPTION);
 	XTmrCtr_Start(TmrCtrInstancePtr,  TIMER_COUNTER_0);	
@@ -203,8 +189,8 @@ int main()
 
 
 
-	xil_printf("Successfully ran Axi Streaming FIFO Polling Example\n\r");
-	xil_printf("--- Exiting main() ---\n\r");
+	//xil_printf("Successfully ran Axi Streaming FIFO Polling Example\n\r");
+	//xil_printf("--- Exiting main() ---\n\r");
 
 		
 
@@ -258,7 +244,7 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 	XUartPs_WriteReg(UART_BASEADDR, XUARTPS_CR_OFFSET,
 		(cr & ~XUARTPS_CR_EN_DIS_MASK) | XUARTPS_CR_TX_EN | XUARTPS_CR_RX_EN);
 
-	uart_puts(UART_BASEADDR, "BOOT\n");
+	//uart_puts(UART_BASEADDR, "BOOT\n");
 		
 	/* Initialize the Device Configuration Interface driver */
 #ifndef SDT
@@ -298,21 +284,26 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 	/*2.Check if matrix data is valid*/
     /*3.Gather Matrix data of A and B in the source buffer*/
 	u32 Running;
-	u8 A_Matrix[A_ROWS*A_COLS] = {0};
-	u8 B_Matrix[A_COLS] = {0};
-	u8 result[A_ROWS] = {0};
+	u32 A_Matrix[A_ROWS*A_COLS] = {0};
+	u32 B_Matrix[A_COLS] = {0};
+	u32 result[A_ROWS] = {0};
 
 	
 	Running = 1;
     
-	while(Running)
+	while(Running)//for (int i=0; i<10000; i++)
 	{
-		//Wait for first data to come in
-		//while(!XUartPs_IsReceiveData(UART_BASEADDR));
-	
-		//Receive the data from fifo buffer
-		//RecvChar = XUartPs_ReadReg(UART_BASEADDR, XUARTPS_FIFO_OFFSET);
-		
+
+		// Fill SourceBuffer from hardcoded A_DATA and B_DATA
+		// for (int r = 0; r < A_ROWS; r++) {
+		// 	for (int c = 0; c < A_COLS; c++) {
+		// 		SourceBuffer[r*A_COLS + c] = (u32)A_DATA[r][c];
+		// 	}
+		// }
+		// for (int c = 0; c < A_COLS; c++) {
+		// 	SourceBuffer[TOTAL_MATRIX_A_ELEMENTS + c] = (u32)B_DATA[c];
+        // }	
+			
 		for (int i = 0; i < A_ROWS * A_COLS; i++) {
 			uart_read_u8_csv(UART_BASEADDR, &A_Matrix[i], &SourceBuffer[i]);
 		}
@@ -327,28 +318,28 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 		/* Transmit the Data Stream */
 		Status = TxSend(InstancePtr, SourceBuffer);
 		if (Status != XST_SUCCESS){
-			xil_printf("Transmission of Data failed\n\r");
+			//xil_printf("Transmission of Data failed\n\r");
 			return XST_FAILURE;
 		}
 
 		/* Receive the Data Stream */
 		Status = RxReceive(InstancePtr, DestinationBuffer);
 		if (Status != XST_SUCCESS){
-			xil_printf("Receiving data failed");
+			//xil_printf("Receiving data failed");
 			return XST_FAILURE;
 		}
 		u32 t1 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
 		u32 cycles_fifo = t1 - t0;   // unsigned wraparound-safe
 		
-		uart_puts(UART_BASEADDR, "CYC_FIFO=");
-		uart_put_u32_dec(UART_BASEADDR, cycles_fifo);
-		uart_puts(UART_BASEADDR, "\n");
-		uart_puts(UART_BASEADDR, "\r");
+		// uart_puts(UART_BASEADDR, "CYC_FIFO=");
+		// uart_put_u32_dec(UART_BASEADDR, cycles_fifo);
+		// uart_puts(UART_BASEADDR, "\n");
+		// uart_puts(UART_BASEADDR, "\r");
 		
 		Error = 0;
 		
 		/* Compare the data send with the data received */
-		xil_printf(" Comparing data ...\n\r");
+		//xil_printf(" Comparing data ...\n\r");
 		for( i=0 ; i<MAX_DATA_BUFFER_SIZE ; i++ ){
 			if ( *(SourceBuffer + i) != *(DestinationBuffer + i) ){
 				Error = 1;
@@ -366,7 +357,6 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 			for (int r = 0; r < A_ROWS; r++)
 			{
 				int sum = 0;
-				// test1 = A_Matrix[0];
 				for (int c = 0; c < A_COLS; c++)
 				{
 					test1 = A_Matrix[r * A_COLS + c];
@@ -377,12 +367,21 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 				result[r] = sum / 256;
 			
 			}
+
+			// for (int r = 0; r < A_ROWS; r++) {
+			// 	u32 sum = 0;
+			// 	for (int c = 0; c < A_COLS; c++) {
+			// 		sum += (u32)A_DATA[r][c] * (u32)B_DATA[c];
+			// 	}
+			// 	result[r] = (sum >> 8);   // same as /256 for positive integers
+			// }
+			
 			u32 t1 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
 			u32 cycles_matrix_multiply = t1 - t0;
-			uart_puts(UART_BASEADDR, "CYC_MATRIX_MULTIPLY=");
-			uart_put_u32_dec(UART_BASEADDR, cycles_matrix_multiply);
-			uart_puts(UART_BASEADDR, "\n");
-			uart_puts(UART_BASEADDR, "\r");
+			// uart_puts(UART_BASEADDR, "CYC_MATRIX_MULTIPLY=");
+			// uart_put_u32_dec(UART_BASEADDR, cycles_matrix_multiply);
+			// uart_puts(UART_BASEADDR, "\n");
+			// uart_puts(UART_BASEADDR, "\r");
 
 			uart_puts(UART_BASEADDR, "RES\n");
 			for (int r = 0; r < A_ROWS; r++) 
@@ -604,81 +603,3 @@ void uart_put_u32_dec(u32 base, u32 v)
 
 
 
-
-
-
-//Timer Function
-#ifndef SDT
-int TmrCtrPolledExample(u16 DeviceId, u8 TmrCtrNumber)
-#else
-int TmrCtrPolledExample(UINTPTR BaseAddr, u8 TmrCtrNumber)
-#endif
-{
-	//int Status;
-	//u32 Value1;
-	//u32 Value2;
-	//XTmrCtr *TmrCtrInstancePtr = &TimerCounter;
-
-	/*
-	 * Initialize the timer counter so that it's ready to use,
-	 * specify the device ID that is generated in xparameters.h
-	 */
-// #ifndef SDT
-// 	xil_printf("Timer initialising1..,\n\r");
-// 	Status = XTmrCtr_Initialize(TmrCtrInstancePtr, DeviceId);
-// #else
-//     xil_printf("Timer initialising1.1\n\r");
-// 	Status = XTmrCtr_Initialize(TmrCtrInstancePtr, BaseAddr);
-// #endif
-// 	if (Status != XST_SUCCESS) {
-// 		xil_printf("Timer initialisation failed\n\r");
-// 		return XST_FAILURE;
-// 	}
-
-	// /*
-	//  * Perform a self-test to ensure that the hardware was built
-	//  * correctly, use the 1st timer in the device (0)
-	//  */
-	// Status = XTmrCtr_SelfTest(TmrCtrInstancePtr, TmrCtrNumber);
-	// if (Status != XST_SUCCESS) {
-	// 	return XST_FAILURE;
-	// }
-
-    //xil_printf("Timer initialisiation successful\n\r");
-	/*
-	 * Enable the Autoreload mode of the timer counters.
-	 */
-	//XTmrCtr_SetOptions(TmrCtrInstancePtr, TmrCtrNumber,
-			   //XTC_AUTO_RELOAD_OPTION);
-
-	// /*
-	//  * Get a snapshot of the timer counter value before it's started
-	//  * to compare against later
-	//  */
-	// Value1 = XTmrCtr_GetValue(TmrCtrInstancePtr, TmrCtrNumber);
-
-	/*
-	 * Start the timer counter such that it's incrementing by default
-	 */
-	//XTmrCtr_Start(TmrCtrInstancePtr, TmrCtrNumber);
-
-	// /*
-	//  * Read the value of the timer counter and wait for it to change,
-	//  * since it's incrementing it should change, if the hardware is not
-	//  * working for some reason, this loop could be infinite such that the
-	//  * function does not return
-	//  */
-	// while (1) {
-	// 	Value2 = XTmrCtr_GetValue(TmrCtrInstancePtr, TmrCtrNumber);
-	// 	if (Value1 != Value2) {
-	// 		break;
-	// 	}
-	// }
-
-	// /*
-	//  * Disable the Autoreload mode of the timer counters.
-	//  */
-	// XTmrCtr_SetOptions(TmrCtrInstancePtr, TmrCtrNumber, 0);
-
-	return XST_SUCCESS;
-}
