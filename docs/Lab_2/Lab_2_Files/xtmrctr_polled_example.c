@@ -362,10 +362,11 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 		if (!Error)
 		{
 			/*Matrix Calculation*/
+			u32 t0 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
 			for (int r = 0; r < A_ROWS; r++)
 			{
 				int sum = 0;
-				test1 = A_Matrix[0];
+				// test1 = A_Matrix[0];
 				for (int c = 0; c < A_COLS; c++)
 				{
 					test1 = A_Matrix[r * A_COLS + c];
@@ -376,6 +377,12 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 				result[r] = sum / 256;
 			
 			}
+			u32 t1 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
+			u32 cycles_matrix_multiply = t1 - t0;
+			uart_puts(UART_BASEADDR, "CYC_MATRIX_MULTIPLY=");
+			uart_put_u32_dec(UART_BASEADDR, cycles_matrix_multiply);
+			uart_puts(UART_BASEADDR, "\n");
+			uart_puts(UART_BASEADDR, "\r");
 
 			uart_puts(UART_BASEADDR, "RES\n");
 			for (int r = 0; r < A_ROWS; r++) 
