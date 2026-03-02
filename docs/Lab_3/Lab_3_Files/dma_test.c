@@ -29,15 +29,12 @@ DEFAULT SET TO 0x01000000
 #define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x004FFFFF)
 
 /***************** Macros *********************/
-#define NUMBER_OF_INPUT_WORDS 4  // length of an input vector
-#define NUMBER_OF_OUTPUT_WORDS 4  // length of an input vector
-#define NUMBER_OF_TEST_VECTORS 2  // number of such test vectors (cases)
+#define NUMBER_OF_INPUT_WORDS 130  // length of an input vector
+#define NUMBER_OF_OUTPUT_WORDS 16  // length of an input vector
+#define NUMBER_OF_TEST_VECTORS 1  // number of such test vectors (cases)
 
 #define DMA_DEV_ID        XPAR_XAXIDMA_0_BASEADDR
 
-/************************** Variable Definitions *****************************/
-XAxiDma AxiDma;	// Device instance
-XAxiDma *InstancePtr = &AxiDma; // Device pointer
 
 #define TMR_NUM 0            // use Timer 0 inside the AXI Timer IP
 
@@ -86,42 +83,6 @@ XAxiDma *InstancePtr = &AxiDma; // Device pointer
 
 #undef DEBUG
 
-
-int* test_input_memory = (int*)TX_BUFFER_BASE;
-int* result_memory = (int*)RX_BUFFER_BASE;
-for (word_cnt=0 ; word_cnt < NUMBER_OF_INPUT_WORDS ; word_cnt++){
-    test_input_memory[word_cnt] = word_cnt+test_case_cnt*NUMBER_OF_INPUT_WORDS+1;
-}
-
-/************************** DMA Initializations *****************************/
-
-    XAxiDma_Config *CfgPtr;
-
-/* Initialize the XAxiDma device.*/
-CfgPtr = XAxiDma_LookupConfig(DMA_DEV_ID);
-if (!CfgPtr) {
-    xil_printf("No config found for %d\r\n", DMA_DEV_ID);
-    return XST_FAILURE;
-}
-
-Status = XAxiDma_CfgInitialize(&AxiDma, CfgPtr);
-if (Status != XST_SUCCESS) {
-    xil_printf("Initialization failed %d\r\n", Status);
-    return XST_FAILURE;
-}
-
-if(XAxiDma_HasSg(&AxiDma)){
-    xil_printf("Device configured as SG mode \r\n");
-    return XST_FAILURE;
-}
-
-/* Disable interrupts, we use polling mode */
-XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK, XAXIDMA_DEVICE_TO_DMA);
-XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK, XAXIDMA_DMA_TO_DEVICE);
-
-//Xil_DCacheDisable(); // uncomment this as a last resort, which will avoid all cache related issues, but at the expense of performance.
-
-
 uint8_t idx = 0;
 uint8_t test1 = 0;
 uint8_t test2 = 0;
@@ -160,6 +121,13 @@ int TmrCtrPolledExample(UINTPTR BaseAddr, u8 TmrCtrNumber);
 XTmrCtr TimerCounter; /* The instance of the Tmrctr Device */
 
 XTmrCtr *TmrCtrInstancePtr = &TimerCounter;
+XAxiDma AxiDma;	// Device instance
+XAxiDma *InstancePtr = &AxiDma; // Device pointer
+
+// Commenting out the lines below as we are using hardcoded buffers, and not compiler/linker allocated.
+//int test_input_memory [NUMBER_OF_TEST_VECTORS*NUMBER_OF_INPUT_WORDS] = {0x01, 0x02, 0x03, 0x04, 0x02, 0x03, 0x04, 0x05}; // 4 inputs * 2
+//int result_memory [NUMBER_OF_TEST_VECTORS*NUMBER_OF_OUTPUT_WORDS]; // same size as test_result_expected_memory
+int test_result_expected_memory [NUMBER_OF_TEST_VECTORS*NUMBER_OF_OUTPUT_WORDS];// 4 outputs *2
 
 //-----------------------------------------------------------------
 //---------------------Timer setup ends ----------------------------------------
@@ -365,7 +333,41 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 	u8 B_Matrix[A_COLS] = {0};
 	u8 result[A_ROWS] = {0};
 
-	
+	int word_cnt, test_case_cnt = 0;
+	int success;
+	Status = XST_SUCCESS;
+
+	int* test_input_memory = (int*)TX_BUFFER_BASE;
+	int* result_memory = (int*)RX_BUFFER_BASE;
+
+
+	/************************** Initializations *****************************/
+
+	 XAxiDma_Config *CfgPtr;
+
+	/* Initialize the XAxiDma device.*/
+	CfgPtr = XAxiDma_LookupConfig(DMA_DEV_ID);
+	if (!CfgPtr) {
+	  xil_printf("No config found for %d\r\n", DMA_DEV_ID);
+	  return XST_FAILURE;
+	}
+
+	Status = XAxiDma_CfgInitialize(&AxiDma, CfgPtr);
+	if (Status != XST_SUCCESS) {
+	  xil_printf("Initialization failed %d\r\n", Status);
+	  return XST_FAILURE;
+	}
+
+	if(XAxiDma_HasSg(&AxiDma)){
+	  xil_printf("Device configured as SG mode \r\n");
+	  return XST_FAILURE;
+	}
+
+	/* Disable interrupts, we use polling mode */
+	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK, XAXIDMA_DEVICE_TO_DMA);
+	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK, XAXIDMA_DMA_TO_DEVICE);
+	// Xil_DCacheDisable(); // uncomment this as a last resort, which will avoid all cache related issues, but at the expense of performance.
+
 	Running = 1;
     
 	while(Running)
@@ -377,38 +379,24 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 		//RecvChar = XUartPs_ReadReg(UART_BASEADDR, XUARTPS_FIFO_OFFSET);
 		
 		for (int i = 0; i < A_ROWS * A_COLS; i++) {
-			uart_read_u8_csv(UART_BASEADDR, &A_Matrix[i], test_input_memory);
+			uart_read_u8_csv(UART_BASEADDR, &A_Matrix[i], &SourceBuffer[i]);
 		}
 
 	    for (int i = 0; i < A_COLS; i++) {
-		    uart_read_u8_csv(UART_BASEADDR, &B_Matrix[i], test_input_memory+(A_ROWS*A_COLS)]);
+		    uart_read_u8_csv(UART_BASEADDR, &B_Matrix[i], &SourceBuffer[i + TOTAL_MATRIX_A_ELEMENTS]);
         }
-	
-		xil_printf(" Transmitting Data \r\n");
-		u32 t0 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
+		for (word_cnt=0 ; word_cnt < NUMBER_OF_INPUT_WORDS ; word_cnt++){
+			// test_input_memory[word_cnt] = SourceBuffer[word_cnt];
+			test_input_memory[word_cnt] = 100;
+		}
+		
 
-		// /* Transmit the Data Stream */
-		// Status = TxSend(InstancePtr, SourceBuffer);
-		// if (Status != XST_SUCCESS){
-		// 	xil_printf("Transmission of Data failed\n\r");
-		// 	return XST_FAILURE;
-		// }
-
-		// /* Receive the Data Stream */
-		// Status = RxReceive(InstancePtr, DestinationBuffer);
-		// if (Status != XST_SUCCESS){
-		// 	xil_printf("Receiving data failed");
-		// 	return XST_FAILURE;
-		// }
-
-        //DMA
-
-
-
+		xil_printf(" Transmitting Data for test case\r\n");
 
 		/* Flush the SrcBuffer and DestBuffer before the DMA transfer, in case the Data Cache is enabled */
 		Xil_DCacheFlushRange((u32)(result_memory), 4*NUMBER_OF_INPUT_WORDS);
 		Xil_DCacheFlushRange((u32)(test_input_memory), 4*NUMBER_OF_INPUT_WORDS);
+		u32 t0 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
 
 		Status = XAxiDma_SimpleTransfer(&AxiDma,(u32) (test_input_memory), 4*NUMBER_OF_INPUT_WORDS, XAXIDMA_DMA_TO_DEVICE);
 
@@ -423,7 +411,7 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 
 		/************************** Receive the Data Stream *****************************/
 
-
+		xil_printf(" Receiving data for test case %d ... \r\n", test_case_cnt);
 
 		Status = XAxiDma_SimpleTransfer(&AxiDma,(u32) (result_memory), 4*NUMBER_OF_OUTPUT_WORDS, XAXIDMA_DEVICE_TO_DMA);
 
@@ -433,19 +421,41 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 		while (XAxiDma_Busy(&AxiDma,XAXIDMA_DEVICE_TO_DMA)) {
 			//wait for transfer to complete
 		}
+		u32 t1 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
+		u32 cycles_fifo = t1 - t0;   // unsigned wraparound-safe
+		
+		uart_puts(UART_BASEADDR, "CYC_DMA=");
+		uart_put_u32_dec(UART_BASEADDR, cycles_fifo);
+		uart_puts(UART_BASEADDR, "\n");
+		uart_puts(UART_BASEADDR, "\r");
 
 		/* Invalidate the DestBuffer before receiving the data, in case the Data Cache is enabled */
 		Xil_DCacheInvalidateRange((u32)(result_memory), 4*NUMBER_OF_OUTPUT_WORDS);
 
+	
+		
+		// u32 t0 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
 
-		u32 t1 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
-		u32 cycles_fifo = t1 - t0;   // unsigned wraparound-safe
-		xil_printf(" Received data \r\n");
-        
-		uart_puts(UART_BASEADDR, "CYC_FIFO=");
-		uart_put_u32_dec(UART_BASEADDR, cycles_fifo);
-		uart_puts(UART_BASEADDR, "\n");
-		uart_puts(UART_BASEADDR, "\r");
+		// /* Transmit the Data Stream */
+		// Status = TxSend(InstancePtr, SourceBuffer);
+		// if (Status != XST_SUCCESS){
+		// 	xil_printf("Transmission of Data failed\n\r");
+		// 	return XST_FAILURE;
+		// }
+
+		// /* Receive the Data Stream */
+		// Status = RxReceive(InstancePtr, DestinationBuffer);
+		// if (Status != XST_SUCCESS){
+		// 	xil_printf("Receiving data failed");
+		// 	return XST_FAILURE;
+		// }
+		// u32 t1 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
+		// u32 cycles_fifo = t1 - t0;   // unsigned wraparound-safe
+		
+		// uart_puts(UART_BASEADDR, "CYC_FIFO=");
+		// uart_put_u32_dec(UART_BASEADDR, cycles_fifo);
+		// uart_puts(UART_BASEADDR, "\n");
+		// uart_puts(UART_BASEADDR, "\r");
 		
 		Error = 0;
 		
@@ -489,7 +499,7 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 			uart_puts(UART_BASEADDR, "CO_PROCESSOR_RES\n");
 			for (int r = 0; r < A_ROWS; r++) 
 			{
-				uart_put_u32_dec(UART_BASEADDR, *(DestinationBuffer + r));
+				uart_put_u32_dec(UART_BASEADDR, *(result_memory + r));
 				uart_putc(UART_BASEADDR, '\n');   // or '\r''\n'
 				uart_putc(UART_BASEADDR, '\r');  
 			}
