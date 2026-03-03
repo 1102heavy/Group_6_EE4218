@@ -194,18 +194,6 @@ int main()
 	int Status1;
 	int Status2;
 
-// #ifndef SDT
-// 	xil_printf("Timer initialising1..,\n\r");
-//     Status2 = TmrCtrPolledExample(TMRCTR_DEVICE_ID, TIMER_COUNTER_0);
-// #else
-//     Status2 = TmrCtrPolledExample(XTMRCTR_BASEADDRESS, TIMER_COUNTER_0);
-// #endif
-//     if (Status2 != XST_SUCCESS) {
-//         xil_printf("Timer init failed\r\n");
-//         return XST_FAILURE;
-//     }
-//     xil_printf("Timer started\r\n");
-	
 	
 #ifndef SDT
     xil_printf("Timer initialising1..,\n\r");
@@ -289,7 +277,7 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 	XUartPs_WriteReg(UART_BASEADDR, XUARTPS_CR_OFFSET,
 		(cr & ~XUARTPS_CR_EN_DIS_MASK) | XUARTPS_CR_TX_EN | XUARTPS_CR_RX_EN);
 
-	uart_puts(UART_BASEADDR, "BOOT\n");
+	uart_puts(UART_BASEADDR, "BOOT\n\r");
 		
 	/* Initialize the Device Configuration Interface driver */
 #ifndef SDT
@@ -396,6 +384,7 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 		/* Flush the SrcBuffer and DestBuffer before the DMA transfer, in case the Data Cache is enabled */
 		Xil_DCacheFlushRange((u32)(result_memory), 4*NUMBER_OF_INPUT_WORDS);
 		Xil_DCacheFlushRange((u32)(test_input_memory), 4*NUMBER_OF_INPUT_WORDS);
+		
 		u32 t0 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
 
 		Status = XAxiDma_SimpleTransfer(&AxiDma,(u32) (result_memory), 4*NUMBER_OF_OUTPUT_WORDS, XAXIDMA_DEVICE_TO_DMA);//rx
@@ -423,10 +412,12 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 			//wait for transfer to complete
 		}
 		u32 t1 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
-		u32 cycles_fifo = t1 - t0;   // unsigned wraparound-safe
+		u32 cycles_dma = t1 - t0;   // unsigned wraparound-safe
 		
 		uart_puts(UART_BASEADDR, "CYC_DMA=");
-		uart_put_u32_dec(UART_BASEADDR, cycles_fifo);
+		uart_put_u32_dec(UART_BASEADDR, cycles_dma);
+		uart_puts(UART_BASEADDR, "\n");
+		uart_puts(UART_BASEADDR, "\r");
 		uart_puts(UART_BASEADDR, "\n");
 		uart_puts(UART_BASEADDR, "\r");
 
@@ -435,40 +426,32 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 
 	
 		
-		// u32 t0 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
+		u32 t3 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
 
-		// /* Transmit the Data Stream */
-		// Status = TxSend(InstancePtr, SourceBuffer);
-		// if (Status != XST_SUCCESS){
-		// 	xil_printf("Transmission of Data failed\n\r");
-		// 	return XST_FAILURE;
-		// }
+		/* Transmit the Data Stream */
+		Status = TxSend(InstancePtr, SourceBuffer);
+		if (Status != XST_SUCCESS){
+			xil_printf("Transmission of Data failed\n\r");
+			return XST_FAILURE;
+		}
 
-		// /* Receive the Data Stream */
-		// Status = RxReceive(InstancePtr, DestinationBuffer);
-		// if (Status != XST_SUCCESS){
-		// 	xil_printf("Receiving data failed");
-		// 	return XST_FAILURE;
-		// }
-		// u32 t1 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
-		// u32 cycles_fifo = t1 - t0;   // unsigned wraparound-safe
+		/* Receive the Data Stream */
+		Status = RxReceive(InstancePtr, DestinationBuffer);
+		if (Status != XST_SUCCESS){
+			xil_printf("Receiving data failed");
+			return XST_FAILURE;
+		}
+		u32 t4 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
+		u32 cycles_fifo = t4 - t3;   // unsigned wraparound-safe
 		
-		// uart_puts(UART_BASEADDR, "CYC_FIFO=");
-		// uart_put_u32_dec(UART_BASEADDR, cycles_fifo);
-		// uart_puts(UART_BASEADDR, "\n");
-		// uart_puts(UART_BASEADDR, "\r");
+		uart_puts(UART_BASEADDR, "CYC_FIFO=");
+		uart_put_u32_dec(UART_BASEADDR, cycles_fifo);
+		uart_puts(UART_BASEADDR, "\n");
+		uart_puts(UART_BASEADDR, "\r");
+		uart_puts(UART_BASEADDR, "\n");
+		uart_puts(UART_BASEADDR, "\r");
 		
 		Error = 0;
-		
-		/* Compare the data send with the data received */
-		// xil_printf(" Comparing data ...\n\r");
-		// for( i=0 ; i<MAX_DATA_BUFFER_SIZE ; i++ ){
-		// 	if ( *(SourceBuffer + i) != *(DestinationBuffer + i) ){
-		// 		Error = 1;
-		// 		break;
-		// 	}
-
-		// }
 
 			
 		/*if Compare is successfull meaning the data is the same, print them out on the serial terminal*/
@@ -492,25 +475,31 @@ int XLlFifoPollingExample(XLlFifo *InstancePtr, UINTPTR BaseAddress)
 			}
 			u32 t1 = XTmrCtr_GetValue(TmrCtrInstancePtr, TIMER_COUNTER_0);
 			u32 cycles_matrix_multiply = t1 - t0;
-			uart_puts(UART_BASEADDR, "CYC_MATRIX_MULTIPLY=");
+			uart_puts(UART_BASEADDR, "CYC_MATRIX_MULTIPLY_Software=");
 			uart_put_u32_dec(UART_BASEADDR, cycles_matrix_multiply);
 			uart_puts(UART_BASEADDR, "\n");
-			uart_puts(UART_BASEADDR, "\r"); 
+			uart_puts(UART_BASEADDR, "\r");
+			uart_puts(UART_BASEADDR, "\n");
+			uart_puts(UART_BASEADDR, "\r");
 
-			uart_puts(UART_BASEADDR, "CO_PROCESSOR_RES\n");
+			uart_puts(UART_BASEADDR, "CO_PROCESSOR_RES\n\r");
 			for (int r = 0; r < A_ROWS; r++) 
 			{
 				uart_put_u32_dec(UART_BASEADDR, *(result_memory + r));
-				uart_putc(UART_BASEADDR, '\n');   // or '\r''\n'
-				uart_putc(UART_BASEADDR, '\r');  
+				uart_puts(UART_BASEADDR, "\n");
+				uart_puts(UART_BASEADDR, "\r");
+				uart_puts(UART_BASEADDR, "\n");
+				uart_puts(UART_BASEADDR, "\r");
 			}
 
-			uart_puts(UART_BASEADDR, "RES\n");
+			uart_puts(UART_BASEADDR, "RES_Softwre\n\r");
 			for (int r = 0; r < A_ROWS; r++) 
 			{
 				uart_put_u32_dec(UART_BASEADDR, (u32)result[r]);
-				uart_putc(UART_BASEADDR, '\n');   // or '\r''\n'
-				uart_putc(UART_BASEADDR, '\r');  
+				uart_puts(UART_BASEADDR, "\n");
+				uart_puts(UART_BASEADDR, "\r");
+				uart_puts(UART_BASEADDR, "\n");
+				uart_puts(UART_BASEADDR, "\r");
 			}
 			
 		}
