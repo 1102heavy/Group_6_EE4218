@@ -35,7 +35,6 @@ void myip_v1_0_HLS_optimised(hls::stream<AXIS>& S_AXIS, hls::stream<AXIS>& M_AXI
 #pragma HLS INTERFACE ap_ctrl_none port=return
 #pragma HLS INTERFACE axis port=S_AXIS
 #pragma HLS INTERFACE axis port=M_AXIS
-#pragma HLS pipeline off
 
 
 	ap_uint<8> A_Matrix[A_ROWS*A_COLS] = {0};

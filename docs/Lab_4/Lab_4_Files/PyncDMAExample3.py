@@ -8,7 +8,7 @@ import numpy as np
 # User configuration
 # ============================================================
 
-BITFILE = "design_1_Lab_4_V4_wrapper.bit"
+BITFILE = "design_1_Lab_4_V5_wrapper.bit"
 
 DMA_NAMES = [
     "axi_dma_0",
